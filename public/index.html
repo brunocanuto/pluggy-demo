@@ -2135,39 +2135,94 @@ async function handleOFAccountSelect(itemId) {
     const data = await pluggy(`/accounts?itemId=${itemId}`);
     const accounts = data.results || data || [];
 
+    console.log('[OF] accounts:', JSON.stringify(accounts.map(a => ({
+      id: a.id, name: a.name, type: a.type, subtype: a.subtype,
+      number: a.number, transferNumber: a.transferNumber,
+      taxNumber: a.taxNumber, owner: a.owner,
+      bankData: a.bankData, routingNumber: a.routingNumber,
+    }))));
+
     // Prioriza CHECKING_ACCOUNT (conta corrente)
-    const checking = accounts.find(a => a.subtype === 'CHECKING_ACCOUNT' || a.type === 'BANK')
+    const checking = accounts.find(a => a.subtype === 'CHECKING_ACCOUNT')
+      || accounts.find(a => a.type === 'BANK')
       || accounts[0];
-    if (!checking) { toast('Nenhuma conta corrente encontrada'); return; }
+    if (!checking) { toast('Nenhuma conta encontrada'); return; }
 
-    // Busca identity para preencher nome e CPF/CNPJ
-    let name = '', tax = '';
-    try {
-      const identity = await pluggy(`/identity?itemId=${itemId}`);
-      name = identity.fullName || identity.businessName || '';
-      tax  = (identity.taxNumber || identity.cpf || identity.cnpj || '').replace(/\D/g,'');
-    } catch {}
+    // ── PARSE AGÊNCIA E CONTA ──
+    // transferNumber vem como "COMPE/Agência/Conta" ex: "323/0001/86844116364"
+    // number sozinho pode ser só a conta sem agência
+    let branch = '', number = '', compe = '';
 
-    // Parseia agência e conta — podem vir como "0001" / "12345-6" ou "0001/12345-6"
-    let branch = checking.number?.split('/')[0]?.trim() || '';
-    let number = checking.number?.split('/')[1]?.trim() || checking.number || '';
-    // Alguns bancos retornam no campo routingNumber
-    if (!branch && checking.routingNumber) branch = checking.routingNumber;
-    // Remove dígito verificador para o número
-    number = number.replace(/[^0-9X]/gi, '');
-    branch = branch.replace(/\D/g,'');
+    if (checking.transferNumber) {
+      const parts = checking.transferNumber.split('/').map(p => p.trim());
+      if (parts.length >= 3) {
+        // COMPE / Agência / Conta
+        compe  = parts[0];
+        branch = parts[1].replace(/\D/g,'');
+        number = parts[2].replace(/[^0-9X]/gi,'');
+      } else if (parts.length === 2) {
+        // Agência / Conta
+        branch = parts[0].replace(/\D/g,'');
+        number = parts[1].replace(/[^0-9X]/gi,'');
+      } else {
+        number = parts[0].replace(/[^0-9X]/gi,'');
+      }
+    } else if (checking.number) {
+      const parts = checking.number.split('/').map(p => p.trim());
+      if (parts.length >= 2) {
+        branch = parts[0].replace(/\D/g,'');
+        number = parts[parts.length-1].replace(/[^0-9X]/gi,'');
+      } else {
+        number = checking.number.replace(/[^0-9X]/gi,'');
+      }
+    }
+    // Fallback: routingNumber como agência
+    if (!branch && checking.routingNumber) branch = checking.routingNumber.replace(/\D/g,'');
 
-    // Tenta mapear institution ID pelo ispb/compe do banco
-    const ispb = checking.bankData?.routingNumber || '';
-    let instId = '', instName = '';
-    if (ispb) {
-      const found = S.institutions.find(i => i.ispb === ispb || i.compe === ispb);
-      if (found) { instId = found.id; instName = found.name || found.tradeName; }
+    // ── NOME E CPF/CNPJ ──
+    // 1. Tenta taxNumber direto na conta
+    let tax = (checking.taxNumber || '').replace(/\D/g,'');
+    let name = checking.owner?.name || checking.name || '';
+
+    // 2. Tenta /identity se não encontrou na conta
+    if (!tax || !name) {
+      try {
+        const identity = await pluggy(`/identity?itemId=${itemId}`);
+        console.log('[OF] identity:', JSON.stringify(identity));
+        if (!name) name = identity.fullName || identity.businessName || '';
+        if (!tax)  tax  = (identity.taxNumber || identity.cpf || identity.cnpj || '').replace(/\D/g,'');
+      } catch(e) {
+        console.warn('[OF] identity não disponível:', e.message);
+      }
     }
 
-    // Preenche o formulário
+    // ── MAPEAR INSTITUIÇÃO ──
+    // Tenta pelo COMPE (3 dígitos) ou ISPB do bankData
+    let instId = '', instName = '';
+    const compeCode = compe || checking.bankData?.routingNumber || '';
+    if (compeCode) {
+      const found = S.institutions.find(i =>
+        i.compe === compeCode ||
+        i.ispb  === compeCode ||
+        (i.name||'').toLowerCase().includes(compeCode.toLowerCase())
+      );
+      if (found) { instId = found.id; instName = found.name || found.tradeName || ''; }
+    }
+    // Fallback: busca pelo nome do banco na conta
+    if (!instId && checking.name) {
+      const bankNameClean = checking.name.toLowerCase().replace(/\s+/g,'');
+      const found = S.institutions.find(i =>
+        (i.name||'').toLowerCase().replace(/\s+/g,'').includes(bankNameClean) ||
+        bankNameClean.includes((i.name||'').toLowerCase().replace(/\s+/g,'').substring(0,6))
+      );
+      if (found) { instId = found.id; instName = found.name || found.tradeName || ''; }
+    }
+
+    console.log('[OF] parsed →', { branch, number, tax, name, compe, instId });
+
+    // ── PREENCHE O FORMULÁRIO ──
     if (name) document.getElementById('m-name').value = name;
-    if (tax)  {
+    if (tax) {
       const el = document.getElementById('m-tax');
       el.value = tax;
       fmtTax(el);
@@ -2178,22 +2233,22 @@ async function handleOFAccountSelect(itemId) {
       document.getElementById('m-institution').value = instId;
       document.getElementById('m-institution-search').value = instName;
     }
-    if (checking.subtype === 'CHECKING_ACCOUNT' || checking.type === 'BANK') {
-      document.getElementById('m-acct-type').value = 'CHECKING_ACCOUNT';
-    }
-
-    // Salva IDs para persistir vínculo OF
+    document.getElementById('m-acct-type').value =
+      checking.subtype === 'CHECKING_ACCOUNT' ? 'CHECKING_ACCOUNT' : 'SAVINGS_ACCOUNT';
     document.getElementById('m-account-id').value = checking.id;
     document.getElementById('m-item-id').value = itemId;
 
-    // Mostra barra de sucesso
+    // ── BARRA DE SUCESSO ──
     const instLabel = instName || checking.name || 'banco conectado';
+    const branchDisplay = branch || '—';
+    const numberDisplay = number || '—';
     document.getElementById('of-success-msg').textContent =
-      `✅ ${instLabel} conectado — ag. ${branch} cc. ${number}. Revise e salve.`;
+      `${instLabel} conectado — ag. ${branchDisplay} · cc. ${numberDisplay}. Revise e salve.`;
     document.getElementById('of-success').style.display = 'flex';
 
     toast('Formulário preenchido via Open Finance!');
   } catch(e) {
+    console.error('[OF] handleOFAccountSelect error:', e);
     toast('Erro ao carregar conta: ' + e.message);
   }
 }
