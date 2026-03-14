@@ -818,12 +818,19 @@ function switchTab(tab) {
 // ══════════════════════════════════════
 async function loadInstitutions() {
   try {
-    const data = await pluggy('/payments/recipients/institutions');
-    if (data && Array.isArray(data.results)) {
-      S.institutions = data.results;
-    } else if (data && Array.isArray(data)) {
-      S.institutions = data;
+    let all = [];
+    let page = 1;
+    while (true) {
+      const data = await pluggy(`/payments/recipients/institutions?page=${page}&pageSize=500`);
+      const items = data.results || (Array.isArray(data) ? data : []);
+      all = all.concat(items);
+      const total = data.total ?? null;
+      if (items.length === 0 || (total !== null && all.length >= total) || items.length < 500) break;
+      page++;
     }
+    // Ordena alfabeticamente
+    all.sort((a, b) => (a.name || a.tradeName || '').localeCompare(b.name || b.tradeName || '', 'pt-BR'));
+    S.institutions = all;
     populateInstitutionDropdown();
   } catch(e) {
     // fallback — mostra campo de texto manual
@@ -846,8 +853,8 @@ function renderAcDrop(q) {
   const drop = document.getElementById('inst-ac-drop');
   if (!drop) return;
   const list = q
-    ? S.institutions.filter(i => (i.name||i.tradeName||'').toLowerCase().includes(q.toLowerCase())).slice(0,30)
-    : S.institutions.slice(0,30);
+    ? S.institutions.filter(i => (i.name||i.tradeName||'').toLowerCase().includes(q.toLowerCase()))
+    : S.institutions;
   if (list.length === 0) {
     drop.innerHTML = `<div class="ac-item" style="color:var(--muted)">Nenhum resultado para "${q}"</div>`;
     return;
