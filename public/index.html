@@ -402,7 +402,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
       <div class="ps">Débito automático de qualquer banco para qualquer banco via Open Finance. Zero boleto, zero inadimplência.</div>
 
       <div class="grid2">
-        <!-- CONFIG -->
+
+        <!-- COLUNA ESQUERDA: contexto + impacto -->
         <div>
           <div class="card">
             <div style="font-size:13px;font-weight:600;margin-bottom:14px">Cenário de demonstração</div>
@@ -419,63 +420,205 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
               <div class="lbl">Cliente pagador</div>
               <input class="inp" id="auto-payer" value="Metalplan Indústria S.A."/>
             </div>
-            <div class="field">
-              <div class="lbl">Dia de cobrança</div>
-              <select class="sel" id="auto-day">
-                <option value="5">Todo dia 5</option>
-                <option value="10">Todo dia 10</option>
-                <option value="15">Todo dia 15</option>
-                <option value="20">Todo dia 20</option>
-              </select>
-            </div>
-            <button class="btn btn-green btn-full" onclick="runAutoSimulation()">
-              🔄 Simular fluxo completo
-            </button>
           </div>
 
           <div class="card" style="margin-top:12px;background:#F0FBF7;border-color:#A8DFCD">
-            <div style="font-size:12px;font-weight:700;color:var(--green-dk);margin-bottom:8px">📊 Impacto financeiro</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <div><div style="font-size:11px;color:var(--muted)">Taxa vs boleto</div><div style="font-size:16px;font-weight:700;color:var(--green)">-90%</div></div>
-              <div><div style="font-size:11px;color:var(--muted)">Redução inadimplência</div><div style="font-size:16px;font-weight:700;color:var(--green)">até 65%</div></div>
-              <div><div style="font-size:11px;color:var(--muted)">Cancelamento automático</div><div style="font-size:16px;font-weight:700;color:var(--green)">✓ Sim</div></div>
-              <div><div style="font-size:11px;color:var(--muted)">Retentativa automática</div><div style="font-size:16px;font-weight:700;color:var(--green)">✓ Sim</div></div>
+            <div style="font-size:12px;font-weight:700;color:var(--green-dk);margin-bottom:10px">📊 Impacto financeiro</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="kpi"><div class="kpi-l">Taxa vs boleto</div><div class="kpi-v g" style="font-size:20px">-90%</div></div>
+              <div class="kpi"><div class="kpi-l">Redução inadimplência</div><div class="kpi-v g" style="font-size:20px">até 65%</div></div>
+              <div class="kpi"><div class="kpi-l">Retentativa automática</div><div class="kpi-v g" style="font-size:20px">✓</div></div>
+              <div class="kpi"><div class="kpi-l">Qualquer banco BR</div><div class="kpi-v g" style="font-size:20px">✓</div></div>
+            </div>
+          </div>
+
+          <!-- Resultado -->
+          <div id="auto-result-empty" class="empty" style="padding:40px 20px;margin-top:12px">
+            <div class="e-ico">🔄</div>
+            <div class="e-txt">Preencha o formulário e crie a solicitação</div>
+          </div>
+          <div id="auto-result" style="display:none;margin-top:12px">
+            <div class="result-box">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Link de consentimento Pix Automático</div>
+              <div class="qr-wrap" id="auto-qr"></div>
+              <div class="pay-url" id="auto-url" onclick="copyUrl('auto-url')">—</div>
+              <div class="status-bar waiting" id="auto-status">
+                <span class="spin">⏳</span> Aguardando autorização do cliente...
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:8px">Cliente autoriza no app do banco · Débito ativado automaticamente</div>
             </div>
           </div>
         </div>
 
-        <!-- SIMULATION STEPS -->
+        <!-- COLUNA DIREITA: formulário real da API -->
         <div>
           <div class="card">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px" id="auto-title">Fluxo: Academia — mensalidade</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="auto-subtitle">R$ 89,90 · todo dia 5 · Metalplan Ind.</div>
-            <div id="auto-steps">
-              <div class="sim-step" id="as0">
-                <div class="sim-num" id="asn0">1</div>
-                <div class="sim-body"><div class="t">ERP gera solicitação de débito automático</div><div class="s">Pluggy cria um consentimento Open Finance com as condições da cobrança</div></div>
+
+            <!-- PAYMENT DETAILS -->
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Payment Details</div>
+
+            <div class="inp-row">
+              <div class="field">
+                <div class="lbl">Amount Type <span style="color:var(--red)">*</span></div>
+                <select class="sel" id="auto-amount-type">
+                  <option value="FIXED">Fixed</option>
+                  <option value="VARIABLE">Variable</option>
+                </select>
               </div>
-              <div class="sim-step" id="as1">
-                <div class="sim-num" id="asn1">2</div>
-                <div class="sim-body"><div class="t">Cliente recebe link no e-mail / WhatsApp</div><div class="s">Link aponta para o app do banco do cliente para autorização</div></div>
-              </div>
-              <div class="sim-step" id="as2">
-                <div class="sim-num" id="asn2">3</div>
-                <div class="sim-body"><div class="t">Cliente autoriza no app do banco</div><div class="s">Qualquer banco do Brasil via Open Finance — sem trocar de conta</div></div>
-              </div>
-              <div class="sim-step" id="as3">
-                <div class="sim-num" id="asn3">4</div>
-                <div class="sim-body"><div class="t">Débito automático ativado</div><div class="s">Pluggy executa a cobrança na data combinada — com retentativa automática em caso de falha</div></div>
-              </div>
-              <div class="sim-step" id="as4">
-                <div class="sim-num" id="asn4">5</div>
-                <div class="sim-body"><div class="t">ERP recebe confirmação via webhook</div><div class="s">Conciliação automática + status atualizado em tempo real no ERP</div></div>
+              <div class="field">
+                <div class="lbl">Amount (R$) <span style="color:var(--red)">*</span></div>
+                <input class="inp" type="number" id="auto-amount" value="89.90" min="0.01" step="0.01" inputmode="decimal"/>
               </div>
             </div>
-            <div class="transfer-anim" id="auto-success">
-              <div style="font-size:32px;margin-bottom:8px">✅</div>
-              <div style="font-size:15px;font-weight:700;color:var(--green-dk);margin-bottom:4px">Pix Automático ativado!</div>
-              <div style="font-size:12px;color:var(--muted)" id="auto-success-msg">Próxima cobrança: dia 5 de abril · R$ 89,90</div>
+
+            <div class="field">
+              <div class="lbl">Description</div>
+              <input class="inp" id="auto-desc" placeholder="Payment description" value="Mensalidade ERP do Futuro"/>
             </div>
+
+            <div class="inp-row">
+              <div class="field">
+                <div class="lbl">Interval <span style="color:var(--red)">*</span></div>
+                <select class="sel" id="auto-interval">
+                  <option value="MONTHLY" selected>Monthly</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="SINGLE">Single</option>
+                </select>
+              </div>
+              <div class="field">
+                <div class="lbl">Start Date <span style="color:var(--red)">*</span></div>
+                <input class="inp" type="date" id="auto-start-date"/>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="lbl">Expires At</div>
+              <input class="inp" type="date" id="auto-expires"/>
+            </div>
+
+            <!-- RECIPIENT & CUSTOMER -->
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 14px;padding-top:14px;border-top:1px solid var(--border)">Recipient &amp; Customer</div>
+
+            <div class="field">
+              <div class="lbl">Recipient <span style="color:var(--red)">*</span></div>
+              <select class="sel" id="auto-recipient">
+                <option value="">Search by name or CNPJ...</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <div class="lbl">Customer <span style="color:var(--muted)">(opcional)</span></div>
+              <input class="inp" id="auto-customer" placeholder="CPF/CNPJ do pagador (pré-preenche o consent)"/>
+            </div>
+
+            <!-- FIRST PAYMENT (collapsible) -->
+            <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('fp-body','fp-arrow')">
+                <span style="font-size:13px;font-weight:600;color:var(--text)">First Payment</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="badge badge-blue">Optional</span>
+                  <span id="fp-arrow" style="color:var(--muted);font-size:12px">▼</span>
+                </div>
+              </div>
+              <div id="fp-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
+                <div class="inp-row">
+                  <div class="field" style="margin-bottom:10px">
+                    <div class="lbl">Amount (R$)</div>
+                    <input class="inp" type="number" id="auto-fp-amount" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal"/>
+                  </div>
+                  <div class="field" style="margin-bottom:10px">
+                    <div class="lbl">Date</div>
+                    <input class="inp" type="date" id="auto-fp-date"/>
+                  </div>
+                </div>
+                <div class="field" style="margin-bottom:0">
+                  <div class="lbl">Description</div>
+                  <input class="inp" id="auto-fp-desc" placeholder="First payment description"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- AUTOMATIC RETRY DAYS (collapsible) -->
+            <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('rd-body','rd-arrow')">
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Automatic Retry Days</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="badge badge-blue">Optional</span>
+                  <span id="rd-arrow" style="color:var(--muted);font-size:12px">▼</span>
+                </div>
+              </div>
+              <div id="rd-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
+                <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Dias após falha para nova tentativa:</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                  ${[1,2,3,4,5,6,7].map(d=>`
+                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:14px;font-weight:500">
+                    <input type="checkbox" id="retry-${d}" value="${d}" style="width:16px;height:16px;accent-color:var(--green)"/> ${d}
+                  </label>`).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- AUTOMATIC SCHEDULES (collapsible) -->
+            <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('as-body','as-arrow')">
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Automatic Schedules</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="badge badge-blue">Optional</span>
+                  <span id="as-arrow" style="color:var(--muted);font-size:12px">▼</span>
+                </div>
+              </div>
+              <div id="as-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+                  <input type="checkbox" id="auto-schedules-enabled" style="width:16px;height:16px;accent-color:var(--green)"/>
+                  Enabled
+                </label>
+                <div style="font-size:12px;color:var(--muted);margin-top:6px">Quando ativado, o Pix Automático é criado automaticamente após o consentimento.</div>
+              </div>
+            </div>
+
+            <!-- ADVANCED SETTINGS (collapsible) -->
+            <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('adv-body','adv-arrow')">
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Advanced Settings</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="badge badge-blue">Optional</span>
+                  <span id="adv-arrow" style="color:var(--muted);font-size:12px">▼</span>
+                </div>
+              </div>
+              <div id="adv-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
+                <div class="field" style="margin-bottom:12px">
+                  <div class="lbl">Internal Reference</div>
+                  <input class="inp" id="auto-ref" placeholder="Your internal reference"/>
+                </div>
+                <div class="inp-row">
+                  <div class="field" style="margin-bottom:0">
+                    <div class="lbl">Callback URL (Success)</div>
+                    <input class="inp" id="auto-cb-success" placeholder="https://..." inputmode="url" style="-webkit-user-select:text;user-select:text"/>
+                  </div>
+                  <div class="field" style="margin-bottom:0">
+                    <div class="lbl">Callback URL (Error)</div>
+                    <input class="inp" id="auto-cb-error" placeholder="https://..." inputmode="url" style="-webkit-user-select:text;user-select:text"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="auto-create-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:12px"></div>
+            <button class="btn btn-green btn-full" id="auto-btn" onclick="createAutomatico()" style="padding:14px">
+              🔄 Create Payment Request
+            </button>
+
+          </div><!-- /card -->
+        </div><!-- /col -->
+      </div><!-- /grid2 -->
+
+      <!-- HISTORY -->
+      <div style="margin-top:24px">
+        <div class="sec">Histórico de Pix Automático</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="automatico-history">
+            <div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Nenhuma solicitação criada ainda</div>
           </div>
         </div>
       </div>
@@ -954,7 +1097,7 @@ function renderRecipients() {
 }
 
 function updateRecipientDropdowns() {
-  ['sim-recipient','sch-recipient'].forEach(id => {
+  ['sim-recipient','sch-recipient','auto-recipient'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     sel.innerHTML = '<option value="">Selecione um recebedor...</option>' +
@@ -1279,47 +1422,172 @@ function updateKpis() {
 // ══════════════════════════════════════
 //  PIX AUTOMÁTICO SIMULATION
 // ══════════════════════════════════════
+// ══════════════════════════════════════
+//  PIX AUTOMÁTICO — REAL API
+// ══════════════════════════════════════
+function toggleSection(bodyId, arrowId) {
+  const body  = document.getElementById(bodyId);
+  const arrow = document.getElementById(arrowId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display  = open ? 'none' : 'block';
+  if (arrow) arrow.textContent = open ? '▼' : '▲';
+}
+
 const autoCtxData = {
-  academia: { title:'Academia — mensalidade', val:'R$ 89,90', emoji:'🏋️' },
-  saas: { title:'SaaS / ERP — assinatura', val:'R$ 299,00', emoji:'💻' },
-  cond: { title:'Condomínio — taxa mensal', val:'R$ 450,00', emoji:'🏢' },
-  escola: { title:'Escola — mensalidade', val:'R$ 780,00', emoji:'🎓' },
+  academia: { title:'Academia — mensalidade', val:'R$ 89,90',  amount: 89.90,  emoji:'🏋️' },
+  saas:     { title:'SaaS / ERP — assinatura', val:'R$ 299,00', amount: 299.00, emoji:'💻' },
+  cond:     { title:'Condomínio — taxa mensal', val:'R$ 450,00', amount: 450.00, emoji:'🏢' },
+  escola:   { title:'Escola — mensalidade',     val:'R$ 780,00', amount: 780.00, emoji:'🎓' },
 };
 
 function updateAutoCtx() {
-  const ctx = document.getElementById('auto-ctx').value;
+  const ctx = document.getElementById('auto-ctx')?.value;
+  if (!ctx) return;
   const d = autoCtxData[ctx];
-  const day = document.getElementById('auto-day').value;
-  const payer = document.getElementById('auto-payer').value;
-  document.getElementById('auto-title').textContent = `Fluxo: ${d.title}`;
-  document.getElementById('auto-subtitle').textContent = `${d.val} · todo dia ${day} · ${payer}`;
-  resetAutoSteps();
-  document.getElementById('auto-success').classList.remove('on');
-}
-
-function resetAutoSteps() {
-  for (let i=0;i<5;i++) {
-    document.getElementById('asn'+i).className='sim-num';
-    document.getElementById('asn'+i).textContent=i+1;
+  if (d) {
+    const amtEl = document.getElementById('auto-amount');
+    if (amtEl) amtEl.value = d.amount.toFixed(2);
+    const descEl = document.getElementById('auto-desc');
+    if (descEl) descEl.value = `${d.title} — ERP do Futuro`;
   }
 }
 
-async function runAutoSimulation() {
-  resetAutoSteps();
-  document.getElementById('auto-success').classList.remove('on');
-  for (let i=0;i<5;i++) {
-    document.getElementById('asn'+i).className='sim-num active';
-    await sleep(900);
-    document.getElementById('asn'+i).className='sim-num done';
-    document.getElementById('asn'+i).textContent='✓';
+async function createAutomatico() {
+  const recipientId = document.getElementById('auto-recipient').value;
+  const amount      = parseFloat(document.getElementById('auto-amount').value);
+  const amountType  = document.getElementById('auto-amount-type').value;
+  const interval    = document.getElementById('auto-interval').value;
+  const startDate   = document.getElementById('auto-start-date').value;
+  const description = document.getElementById('auto-desc').value.trim();
+  const expiresAt   = document.getElementById('auto-expires').value;
+  const customerTax = document.getElementById('auto-customer').value.replace(/\D/g,'');
+  const intRef      = document.getElementById('auto-ref').value.trim();
+  const cbSuccess   = document.getElementById('auto-cb-success').value.trim();
+  const cbError     = document.getElementById('auto-cb-error').value.trim();
+  const errEl       = document.getElementById('auto-create-error');
+
+  if (!recipientId) { errEl.style.display='block'; errEl.textContent='Selecione um recebedor.'; return; }
+  if (!amount || amount <= 0) { errEl.style.display='block'; errEl.textContent='Informe um valor válido.'; return; }
+  if (!startDate) { errEl.style.display='block'; errEl.textContent='Informe a data de início.'; return; }
+  errEl.style.display='none';
+
+  const btn = document.getElementById('auto-btn');
+  btn.disabled = true; btn.textContent = '⏳ Criando...';
+
+  // Retry days selecionados
+  const retryDays = [1,2,3,4,5,6,7]
+    .filter(d => document.getElementById(`retry-${d}`)?.checked)
+    .map(d => d);
+
+  // Automatic schedules
+  const autoSchedules = document.getElementById('auto-schedules-enabled')?.checked || false;
+
+  // Monta payload para Pix Automático
+  const payload = {
+    amount,
+    description: description || 'Pix Automático — ERP do Futuro',
+    recipientId,
+    automaticPix: {
+      amountType,
+      interval,
+      startDate,
+      ...(expiresAt && { expiresAt }),
+      ...(retryDays.length > 0 && { retryDays }),
+      ...(autoSchedules && { automaticSchedules: { enabled: true } }),
+    },
+  };
+
+  // First Payment (se preenchido)
+  const fpAmount = parseFloat(document.getElementById('auto-fp-amount').value);
+  const fpDate   = document.getElementById('auto-fp-date').value;
+  if (fpAmount > 0 && fpDate) {
+    const fpDesc = document.getElementById('auto-fp-desc').value.trim();
+    payload.automaticPix.firstPayment = {
+      amount: fpAmount,
+      date: fpDate,
+      ...(fpDesc && { description: fpDesc }),
+    };
   }
-  const ctx = document.getElementById('auto-ctx').value;
-  const d = autoCtxData[ctx];
-  const day = document.getElementById('auto-day').value;
-  const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1);
-  document.getElementById('auto-success-msg').textContent =
-    `Próxima cobrança: dia ${day} de ${nextMonth.toLocaleDateString('pt-BR',{month:'long'})} · ${d.val}`;
-  document.getElementById('auto-success').classList.add('on');
+
+  // Advanced settings
+  if (intRef) payload.internalReference = intRef;
+  if (cbSuccess || cbError) {
+    payload.callbackUrls = {
+      ...(cbSuccess && { success: cbSuccess }),
+      ...(cbError   && { error:   cbError   }),
+    };
+  }
+
+  // Customer CPF/CNPJ para pré-preencher o consent
+  if (customerTax) {
+    try {
+      const cust = await pluggy('/payments/customers', 'POST', {
+        type: customerTax.length === 11 ? 'INDIVIDUAL' : 'BUSINESS',
+        cpf: customerTax.length === 11 ? customerTax : undefined,
+        cnpj: customerTax.length === 14 ? customerTax : undefined,
+      });
+      if (cust.id) payload.customerId = cust.id;
+    } catch { /* prossegue sem customerId */ }
+  }
+
+  try {
+    const result = await pluggy('/payments/requests/automatic-pix', 'POST', payload);
+    if (result.paymentUrl || result.id) {
+      const url = result.paymentUrl || `https://pay.pluggy.ai/${result.id}`;
+      showAutoResult(url);
+      const rec = S.recipients.find(r => r.id === recipientId);
+      addHistory({
+        id: result.id,
+        type: 'PIX_AUTOMATICO',
+        amount,
+        desc: description,
+        url,
+        status: 'CREATED',
+        recipientName: rec?.name || '—',
+        createdAt: new Date().toLocaleTimeString('pt-BR'),
+      });
+      renderAutomaticoHistory();
+      toast('Pix Automático criado com sucesso!');
+    } else {
+      errEl.style.display='block';
+      errEl.textContent = result.message || result.error || 'Erro ao criar. Verifique os dados.';
+    }
+  } catch(e) {
+    errEl.style.display='block';
+    errEl.textContent = 'Erro de rede: ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 Create Payment Request';
+  }
+}
+
+function showAutoResult(url) {
+  document.getElementById('auto-result-empty').style.display='none';
+  document.getElementById('auto-result').style.display='block';
+  document.getElementById('auto-url').textContent = url;
+  document.getElementById('auto-status').className = 'status-bar waiting';
+  document.getElementById('auto-status').innerHTML = '<span class="spin">⏳</span> Aguardando autorização do cliente...';
+  genQR('auto-qr', url);
+}
+
+function renderAutomaticoHistory() {
+  const el = document.getElementById('automatico-history');
+  if (!el) return;
+  const items = S.history.filter(h => h.type === 'PIX_AUTOMATICO');
+  if (!items.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Nenhuma solicitação criada ainda</div>';
+    return;
+  }
+  el.innerHTML = `<table class="htable">
+    <thead><tr><th>Horário</th><th>Recebedor</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead>
+    <tbody>${items.map(h=>`
+      <tr>
+        <td>${h.createdAt}</td><td>${h.recipientName}</td>
+        <td style="font-size:11px;color:var(--muted)">${h.desc||'—'}</td>
+        <td style="font-weight:600">R$ ${parseFloat(h.amount).toFixed(2)}</td>
+        <td>${statusChip(h.status)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
 }
 
 // ══════════════════════════════════════
@@ -1683,10 +1951,13 @@ function copyReceiverUrl() {
 //  INIT
 // ══════════════════════════════════════
 (async function init() {
-  // Set default date to tomorrow
+  // Set default dates to tomorrow
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
   const d = document.getElementById('sch-date');
-  if (d) d.value = tomorrow.toISOString().split('T')[0];
+  if (d) d.value = tomorrowStr;
+  const da = document.getElementById('auto-start-date');
+  if (da) da.value = tomorrowStr;
 
   loadRecipients();
   loadHistory();
