@@ -28,15 +28,16 @@ module.exports = async function handler(req, res) {
       return res.status(r.status).json(data);
     }
 
-    // ── CONNECT TOKEN: usa credenciais do servidor + apiKey ──
-    if (endpoint === '/connect-token') {
+    // ── CONNECT TOKEN: usa apiKey (JWT) no header ──
+    if (endpoint === '/connect-token' || endpoint === '/connect_token') {
       if (!apiKey) return res.status(401).json({ error: 'apiKey ausente' });
-      const r = await fetch(`${BASE}/connect-token`, {
+      const r = await fetch(`${BASE}/connect_token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
         body: JSON.stringify(body || {}),
       });
       const data = await r.json();
+      console.log('[proxy] connect_token status:', r.status, JSON.stringify(data));
       return res.status(r.status).json(data);
     }
 
