@@ -454,150 +454,154 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
         <div>
           <div class="card">
 
-            <!-- PAYMENT DETAILS -->
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Payment Details</div>
+            <!-- DETALHES DO PAGAMENTO -->
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Detalhes do pagamento</div>
 
             <div class="inp-row">
               <div class="field">
-                <div class="lbl">Amount Type <span style="color:var(--red)">*</span></div>
+                <div class="lbl">Tipo de valor <span style="color:var(--red)">*</span></div>
                 <select class="sel" id="auto-amount-type">
-                  <option value="FIXED">Fixed</option>
-                  <option value="VARIABLE">Variable</option>
+                  <option value="FIXED">Fixo</option>
+                  <option value="VARIABLE">Variável</option>
                 </select>
               </div>
               <div class="field">
-                <div class="lbl">Amount (R$) <span style="color:var(--red)">*</span></div>
+                <div class="lbl">Valor (R$) <span style="color:var(--red)">*</span></div>
                 <input class="inp" type="number" id="auto-amount" value="89.90" min="0.01" step="0.01" inputmode="decimal"/>
               </div>
             </div>
 
             <div class="field">
-              <div class="lbl">Description</div>
-              <input class="inp" id="auto-desc" placeholder="Payment description" value="Mensalidade ERP do Futuro"/>
+              <div class="lbl">Descrição</div>
+              <input class="inp" id="auto-desc" placeholder="Descrição do pagamento" value="Mensalidade ERP do Futuro"/>
             </div>
 
             <div class="inp-row">
               <div class="field">
-                <div class="lbl">Interval <span style="color:var(--red)">*</span></div>
+                <div class="lbl">Periodicidade <span style="color:var(--red)">*</span></div>
                 <select class="sel" id="auto-interval">
-                  <option value="MONTHLY" selected>Monthly</option>
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="DAILY">Daily</option>
-                  <option value="SINGLE">Single</option>
+                  <option value="WEEKLY">Semanal</option>
+                  <option value="MONTHLY" selected>Mensal</option>
+                  <option value="QUARTERLY">Trimestral</option>
+                  <option value="SEMESTER">Semestral</option>
+                  <option value="YEARLY">Anual</option>
                 </select>
               </div>
               <div class="field">
-                <div class="lbl">Start Date <span style="color:var(--red)">*</span></div>
+                <div class="lbl">Data de início <span style="color:var(--red)">*</span></div>
                 <input class="inp" type="date" id="auto-start-date"/>
               </div>
             </div>
 
             <div class="field">
-              <div class="lbl">Expires At</div>
+              <div class="lbl">Expira em <span style="color:var(--muted);font-weight:400">(opcional)</span></div>
               <input class="inp" type="date" id="auto-expires"/>
             </div>
 
-            <!-- RECIPIENT & CUSTOMER -->
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 14px;padding-top:14px;border-top:1px solid var(--border)">Recipient &amp; Customer</div>
+            <!-- RECEBEDOR E CLIENTE -->
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 14px;padding-top:14px;border-top:1px solid var(--border)">Recebedor e cliente</div>
 
             <div class="field">
-              <div class="lbl">Recipient <span style="color:var(--red)">*</span></div>
+              <div class="lbl">Recebedor <span style="color:var(--red)">*</span></div>
               <select class="sel" id="auto-recipient">
-                <option value="">Search by name or CNPJ...</option>
+                <option value="">Buscar por nome ou CNPJ...</option>
               </select>
             </div>
 
             <div class="field">
-              <div class="lbl">Customer <span style="color:var(--muted)">(opcional)</span></div>
-              <input class="inp" id="auto-customer" placeholder="CPF/CNPJ do pagador (pré-preenche o consent)"/>
+              <div class="lbl">Cliente pagador <span style="color:var(--muted);font-weight:400">(opcional)</span></div>
+              <input class="inp" id="auto-customer" placeholder="CPF ou CNPJ do pagador (pré-preenche o consentimento)" style="-webkit-user-select:text;user-select:text"/>
             </div>
 
-            <!-- FIRST PAYMENT (collapsible) -->
+            <!-- PRIMEIRO PAGAMENTO (colapsável) -->
             <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('fp-body','fp-arrow')">
-                <span style="font-size:13px;font-weight:600;color:var(--text)">First Payment</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Primeiro pagamento</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span class="badge badge-blue">Optional</span>
+                  <span class="badge badge-blue">Opcional</span>
                   <span id="fp-arrow" style="color:var(--muted);font-size:12px">▼</span>
                 </div>
               </div>
               <div id="fp-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
                 <div class="inp-row">
                   <div class="field" style="margin-bottom:10px">
-                    <div class="lbl">Amount (R$)</div>
+                    <div class="lbl">Valor (R$)</div>
                     <input class="inp" type="number" id="auto-fp-amount" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal"/>
                   </div>
                   <div class="field" style="margin-bottom:10px">
-                    <div class="lbl">Date</div>
+                    <div class="lbl">Data</div>
                     <input class="inp" type="date" id="auto-fp-date"/>
                   </div>
                 </div>
                 <div class="field" style="margin-bottom:0">
-                  <div class="lbl">Description</div>
-                  <input class="inp" id="auto-fp-desc" placeholder="First payment description"/>
+                  <div class="lbl">Descrição</div>
+                  <input class="inp" id="auto-fp-desc" placeholder="Descrição do primeiro pagamento"/>
                 </div>
               </div>
             </div>
 
-            <!-- AUTOMATIC RETRY DAYS (collapsible) -->
+            <!-- DIAS DE RETENTATIVA (colapsável) -->
             <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('rd-body','rd-arrow')">
-                <span style="font-size:13px;font-weight:600;color:var(--text)">Automatic Retry Days</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Dias de retentativa automática</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span class="badge badge-blue">Optional</span>
+                  <span class="badge badge-blue">Opcional</span>
                   <span id="rd-arrow" style="color:var(--muted);font-size:12px">▼</span>
                 </div>
               </div>
               <div id="rd-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
-                <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Dias após falha para nova tentativa:</div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap">
-                  ${[1,2,3,4,5,6,7].map(d=>`
-                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:14px;font-weight:500">
-                    <input type="checkbox" id="retry-${d}" value="${d}" style="width:16px;height:16px;accent-color:var(--green)"/> ${d}
-                  </label>`).join('')}
+                <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Selecione os dias após falha para nova tentativa:</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-1" value="1" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 1</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-2" value="2" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 2</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-3" value="3" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 3</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-4" value="4" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 4</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-5" value="5" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 5</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-6" value="6" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 6</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px;font-weight:500;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff"><input type="checkbox" id="retry-7" value="7" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/> 7</label>
                 </div>
               </div>
             </div>
 
-            <!-- AUTOMATIC SCHEDULES (collapsible) -->
+            <!-- AGENDAMENTOS AUTOMÁTICOS (colapsável) -->
             <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('as-body','as-arrow')">
-                <span style="font-size:13px;font-weight:600;color:var(--text)">Automatic Schedules</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Agendamentos automáticos</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span class="badge badge-blue">Optional</span>
+                  <span class="badge badge-blue">Opcional</span>
                   <span id="as-arrow" style="color:var(--muted);font-size:12px">▼</span>
                 </div>
               </div>
               <div id="as-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-                  <input type="checkbox" id="auto-schedules-enabled" style="width:16px;height:16px;accent-color:var(--green)"/>
-                  Enabled
+                  <input type="checkbox" id="auto-schedules-enabled" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
+                  Habilitado
                 </label>
-                <div style="font-size:12px;color:var(--muted);margin-top:6px">Quando ativado, o Pix Automático é criado automaticamente após o consentimento.</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:6px">Quando ativado, o Pix Automático é agendado automaticamente após o consentimento.</div>
               </div>
             </div>
 
-            <!-- ADVANCED SETTINGS (collapsible) -->
+            <!-- CONFIGURAÇÕES AVANÇADAS (colapsável) -->
             <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg)" onclick="toggleSection('adv-body','adv-arrow')">
-                <span style="font-size:13px;font-weight:600;color:var(--text)">Advanced Settings</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text)">Configurações avançadas</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span class="badge badge-blue">Optional</span>
+                  <span class="badge badge-blue">Opcional</span>
                   <span id="adv-arrow" style="color:var(--muted);font-size:12px">▼</span>
                 </div>
               </div>
               <div id="adv-body" style="display:none;padding:14px;border-top:1px solid var(--border);background:#fff">
                 <div class="field" style="margin-bottom:12px">
-                  <div class="lbl">Internal Reference</div>
-                  <input class="inp" id="auto-ref" placeholder="Your internal reference"/>
+                  <div class="lbl">Referência interna</div>
+                  <input class="inp" id="auto-ref" placeholder="Sua referência interna" style="-webkit-user-select:text;user-select:text"/>
                 </div>
                 <div class="inp-row">
                   <div class="field" style="margin-bottom:0">
-                    <div class="lbl">Callback URL (Success)</div>
+                    <div class="lbl">URL de retorno (sucesso)</div>
                     <input class="inp" id="auto-cb-success" placeholder="https://..." inputmode="url" style="-webkit-user-select:text;user-select:text"/>
                   </div>
                   <div class="field" style="margin-bottom:0">
-                    <div class="lbl">Callback URL (Error)</div>
+                    <div class="lbl">URL de retorno (erro)</div>
                     <input class="inp" id="auto-cb-error" placeholder="https://..." inputmode="url" style="-webkit-user-select:text;user-select:text"/>
                   </div>
                 </div>
@@ -606,7 +610,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
 
             <div id="auto-create-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:12px"></div>
             <button class="btn btn-green btn-full" id="auto-btn" onclick="createAutomatico()" style="padding:14px">
-              🔄 Create Payment Request
+              🔄 Criar solicitação de pagamento
             </button>
 
           </div><!-- /card -->
@@ -1472,6 +1476,9 @@ async function createAutomatico() {
   if (!startDate) { errEl.style.display='block'; errEl.textContent='Informe a data de início.'; return; }
   errEl.style.display='none';
 
+  // Garante formato YYYY-MM-DD exigido pela API
+  const fmtDate = d => d ? d.split('T')[0] : undefined;
+
   const btn = document.getElementById('auto-btn');
   btn.disabled = true; btn.textContent = '⏳ Criando...';
 
@@ -1491,8 +1498,8 @@ async function createAutomatico() {
     automaticPix: {
       amountType,
       interval,
-      startDate,
-      ...(expiresAt && { expiresAt }),
+      startDate: fmtDate(startDate),
+      ...(expiresAt && { expiresAt: fmtDate(expiresAt) }),
       ...(retryDays.length > 0 && { retryDays }),
       ...(autoSchedules && { automaticSchedules: { enabled: true } }),
     },
@@ -1505,7 +1512,7 @@ async function createAutomatico() {
     const fpDesc = document.getElementById('auto-fp-desc').value.trim();
     payload.automaticPix.firstPayment = {
       amount: fpAmount,
-      date: fpDate,
+      date: fmtDate(fpDate),
       ...(fpDesc && { description: fpDesc }),
     };
   }
@@ -1557,7 +1564,7 @@ async function createAutomatico() {
     errEl.style.display='block';
     errEl.textContent = 'Erro de rede: ' + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '🔄 Create Payment Request';
+    btn.disabled = false; btn.textContent = '🔄 Criar solicitação de pagamento';
   }
 }
 
