@@ -138,6 +138,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
 
+/* ── OPEN FINANCE CONNECT ── */
+.of-connect-btn{width:100%;padding:14px;background:linear-gradient(135deg,#1a1a2e 0%,#1D9E75 100%);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:14px}
+.of-connect-btn:active{opacity:.85}
+.of-divider{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:var(--muted)}
+.of-divider::before,.of-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.of-success-bar{background:#E1F5EE;border:1px solid #A8DFCD;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:#0F6E56}
+.of-badge-sm{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;background:var(--green-lt);color:var(--green-dk);flex-shrink:0}
+
 /* ── INSTITUTION AUTOCOMPLETE ── */
 .ac-wrap{position:relative}
 .ac-inp{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;-webkit-user-select:text;user-select:text}
@@ -868,9 +876,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="modal-title">Novo Recebedor</div>
+
+    <!-- OPEN FINANCE CONNECT -->
+    <button class="of-connect-btn" onclick="openPluggyConnect()">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="9" width="16" height="9" rx="2.5" fill="white" fill-opacity=".9"/><rect x="5.5" y="3" width="3.5" height="7.5" rx="1.75" fill="white" fill-opacity=".7"/><rect x="11" y="3" width="3.5" height="7.5" rx="1.75" fill="white" fill-opacity=".7"/><circle cx="10" cy="13.5" r="2" fill="#1D9E75"/></svg>
+      Conectar via Open Finance
+    </button>
+    <div id="of-success" style="display:none" class="of-success-bar">
+      <span style="font-size:18px">✅</span>
+      <div style="flex:1"><span id="of-success-msg">Conta conectada!</span></div>
+      <button onclick="clearOFConnection()" style="background:none;border:none;cursor:pointer;color:#0F6E56;font-size:18px;line-height:1">✕</button>
+    </div>
+
+    <div class="of-divider">ou preencha manualmente</div>
+
     <div class="field">
       <div class="lbl">Nome / Razão social</div>
-      <input class="inp" id="m-name" placeholder="Ex: Metalplan Indústria S.A."/>
+      <input class="inp" id="m-name" placeholder="Ex: Metalplan Indústria S.A." style="-webkit-user-select:text;user-select:text"/>
     </div>
     <div class="inp-row">
       <div class="field">
@@ -897,13 +919,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
     <div class="inp-row">
       <div class="field">
         <div class="lbl">Agência</div>
-        <input class="inp" id="m-branch" placeholder="0001" inputmode="numeric"/>
+        <input class="inp" id="m-branch" placeholder="0001" inputmode="numeric" style="-webkit-user-select:text;user-select:text"/>
       </div>
       <div class="field">
         <div class="lbl">Número da conta</div>
-        <input class="inp" id="m-number" placeholder="123456" inputmode="numeric"/>
+        <input class="inp" id="m-number" placeholder="123456" inputmode="numeric" style="-webkit-user-select:text;user-select:text"/>
       </div>
     </div>
+    <input type="hidden" id="m-account-id"/>
+    <input type="hidden" id="m-item-id"/>
     <div id="modal-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:12px"></div>
     <div style="display:flex;gap:10px;margin-top:6px">
       <button class="btn btn-outline btn-full" onclick="closeModal()">Cancelar</button>
@@ -1101,18 +1125,31 @@ function renderRecipients() {
     el.innerHTML = '<div class="empty"><div class="e-ico">🏦</div><div class="e-txt">Nenhum recebedor cadastrado.<br/>Crie um abaixo para começar.</div></div>';
     return;
   }
-  el.innerHTML = S.recipients.map(r => `
-    <div class="recipient-card">
-      <div class="rec-ico">🏦</div>
-      <div>
-        <div class="rec-name">${r.name}</div>
-        <div class="rec-sub">${r.taxNumber} · ${r.institutionName || 'banco'} · ag.${r.branch} cc.****${r.number.slice(-4)}</div>
-        <div style="font-size:10px;color:var(--muted2);margin-top:2px;font-family:monospace">ID: ${r.id.substring(0,16)}...</div>
+  el.innerHTML = S.recipients.map(r => {
+    const isOF = !!r.accountId;
+    const balDisplay = r.balance !== undefined
+      ? `<span style="font-weight:700;color:var(--green)">R$ ${parseFloat(r.balance).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`
+      : isOF ? `<span style="color:var(--muted);font-size:11px">Saldo não carregado</span>` : '';
+    return `
+    <div class="recipient-card" id="rec-${r.id}">
+      <div class="rec-ico">${isOF ? '🔗' : '🏦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span class="rec-name">${r.name}</span>
+          ${isOF ? '<span class="of-badge-sm">Open Finance</span>' : ''}
+        </div>
+        <div class="rec-sub">${r.taxNumber} · ${r.institutionName||'banco'} · ag.${r.branch} cc.****${r.number.slice(-4)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div style="font-size:10px;color:var(--muted2);font-family:monospace">ID: ${r.id.substring(0,16)}...</div>
+          ${isOF && balDisplay ? `<span style="font-size:12px">${balDisplay}</span>` : ''}
+        </div>
       </div>
       <div class="rec-actions">
+        ${isOF ? `<button class="btn btn-outline btn-sm" onclick="refreshBalance('${r.id}')" id="bal-btn-${r.id}" title="Atualizar saldo">↺ Saldo</button>` : ''}
         <button class="btn btn-red btn-sm" onclick="deleteRecipient('${r.id}')">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function updateRecipientDropdowns() {
@@ -1131,6 +1168,8 @@ async function saveRecipient() {
   const branch = document.getElementById('m-branch').value.trim();
   const number = document.getElementById('m-number').value.trim();
   const acctType = document.getElementById('m-acct-type').value;
+  const accountId = document.getElementById('m-account-id').value || null;
+  const itemId    = document.getElementById('m-item-id').value    || null;
   const errEl = document.getElementById('modal-error');
 
   if (!name || !tax || !institutionId || !branch || !number) {
@@ -1155,19 +1194,24 @@ async function saveRecipient() {
 
     if (result.id) {
       const inst = S.institutions.find(i=>i.id===institutionId);
-      S.recipients.push({
+      const rec = {
         id: result.id,
         name,
         taxNumber: tax,
         institutionName: inst ? (inst.name||inst.tradeName) : institutionId.substring(0,8),
         branch,
         number,
-      });
+        ...(accountId && { accountId }),
+        ...(itemId    && { itemId    }),
+      };
+      S.recipients.push(rec);
       saveRecipients();
       renderRecipients();
       updateRecipientDropdowns();
       closeModal();
       toast('Recebedor criado com sucesso!');
+      // Auto-carrega saldo se conectado via OF
+      if (accountId) refreshBalance(result.id);
     } else {
       errEl.style.display='block';
       errEl.textContent = result.message || result.error || 'Erro ao criar recebedor. Verifique os dados.';
@@ -1197,6 +1241,9 @@ function openModal() {
   document.getElementById('m-number').value='';
   document.getElementById('m-institution').value='';
   document.getElementById('m-institution-search').value='';
+  document.getElementById('m-account-id').value='';
+  document.getElementById('m-item-id').value='';
+  document.getElementById('of-success').style.display='none';
   const drop = document.getElementById('inst-ac-drop');
   if (drop) drop.classList.remove('open');
   document.getElementById('modal-error').style.display='none';
@@ -2010,6 +2057,162 @@ async function clearLog() {
 function copyReceiverUrl() {
   const url = document.getElementById('wh-receiver-url')?.textContent || '';
   navigator.clipboard.writeText(url).then(() => toast('URL copiada!')).catch(()=>{});
+}
+
+// ══════════════════════════════════════
+//  OPEN FINANCE — CONNECT TO AUTO-FILL
+// ══════════════════════════════════════
+async function openPluggyConnect() {
+  try {
+    // Obtém connect token via proxy
+    const tokenData = await pluggy('/connect-token', 'POST', {
+      clientUserId: 'erp-demo-user',
+      options: {
+        products: ['ACCOUNTS','IDENTITY'],
+        webhook: `${window.location.origin}/api/webhook`,
+      },
+    });
+    if (!tokenData.accessToken) {
+      toast('Erro ao obter token de conexão');
+      return;
+    }
+
+    // Carrega o widget Pluggy Connect dinamicamente
+    if (!window.PluggyConnect) {
+      await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2/pluggy-connect.js');
+    }
+
+    const connect = new window.PluggyConnect({
+      connectToken: tokenData.accessToken,
+      onSuccess: async ({ item }) => {
+        connect.destroy();
+        await handleOFAccountSelect(item.id);
+      },
+      onError: (err) => {
+        connect.destroy();
+        toast('Erro na conexão: ' + (err.message || 'tente novamente'));
+      },
+      onClose: () => connect.destroy(),
+    });
+    connect.init();
+  } catch(e) {
+    toast('Erro ao abrir widget: ' + e.message);
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function handleOFAccountSelect(itemId) {
+  try {
+    toast('Carregando contas do banco...');
+    const data = await pluggy(`/accounts?itemId=${itemId}`);
+    const accounts = data.results || data || [];
+
+    // Prioriza CHECKING_ACCOUNT (conta corrente)
+    const checking = accounts.find(a => a.subtype === 'CHECKING_ACCOUNT' || a.type === 'BANK')
+      || accounts[0];
+    if (!checking) { toast('Nenhuma conta corrente encontrada'); return; }
+
+    // Busca identity para preencher nome e CPF/CNPJ
+    let name = '', tax = '';
+    try {
+      const identity = await pluggy(`/identity?itemId=${itemId}`);
+      name = identity.fullName || identity.businessName || '';
+      tax  = (identity.taxNumber || identity.cpf || identity.cnpj || '').replace(/\D/g,'');
+    } catch {}
+
+    // Parseia agência e conta — podem vir como "0001" / "12345-6" ou "0001/12345-6"
+    let branch = checking.number?.split('/')[0]?.trim() || '';
+    let number = checking.number?.split('/')[1]?.trim() || checking.number || '';
+    // Alguns bancos retornam no campo routingNumber
+    if (!branch && checking.routingNumber) branch = checking.routingNumber;
+    // Remove dígito verificador para o número
+    number = number.replace(/[^0-9X]/gi, '');
+    branch = branch.replace(/\D/g,'');
+
+    // Tenta mapear institution ID pelo ispb/compe do banco
+    const ispb = checking.bankData?.routingNumber || '';
+    let instId = '', instName = '';
+    if (ispb) {
+      const found = S.institutions.find(i => i.ispb === ispb || i.compe === ispb);
+      if (found) { instId = found.id; instName = found.name || found.tradeName; }
+    }
+
+    // Preenche o formulário
+    if (name) document.getElementById('m-name').value = name;
+    if (tax)  {
+      const el = document.getElementById('m-tax');
+      el.value = tax;
+      fmtTax(el);
+    }
+    if (branch) document.getElementById('m-branch').value = branch;
+    if (number) document.getElementById('m-number').value = number;
+    if (instId) {
+      document.getElementById('m-institution').value = instId;
+      document.getElementById('m-institution-search').value = instName;
+    }
+    if (checking.subtype === 'CHECKING_ACCOUNT' || checking.type === 'BANK') {
+      document.getElementById('m-acct-type').value = 'CHECKING_ACCOUNT';
+    }
+
+    // Salva IDs para persistir vínculo OF
+    document.getElementById('m-account-id').value = checking.id;
+    document.getElementById('m-item-id').value = itemId;
+
+    // Mostra barra de sucesso
+    const instLabel = instName || checking.name || 'banco conectado';
+    document.getElementById('of-success-msg').textContent =
+      `✅ ${instLabel} conectado — ag. ${branch} cc. ${number}. Revise e salve.`;
+    document.getElementById('of-success').style.display = 'flex';
+
+    toast('Formulário preenchido via Open Finance!');
+  } catch(e) {
+    toast('Erro ao carregar conta: ' + e.message);
+  }
+}
+
+function clearOFConnection() {
+  document.getElementById('m-account-id').value = '';
+  document.getElementById('m-item-id').value = '';
+  document.getElementById('of-success').style.display = 'none';
+}
+
+// ══════════════════════════════════════
+//  BALANCE REFRESH
+// ══════════════════════════════════════
+async function refreshBalance(recipientId) {
+  const rec = S.recipients.find(r => r.id === recipientId);
+  if (!rec?.accountId) return;
+
+  const btn = document.getElementById(`bal-btn-${recipientId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  try {
+    const data = await pluggy(`/accounts/${rec.accountId}/balance`);
+    const bal = data.balance ?? data.available ?? data.current ?? null;
+    if (bal !== null) {
+      rec.balance = bal;
+      saveRecipients();
+      renderRecipients();
+      toast(`Saldo atualizado: R$ ${parseFloat(bal).toLocaleString('pt-BR',{minimumFractionDigits:2})}`);
+    } else {
+      // Tenta ler saldo do endpoint /accounts/{id}
+      const acct = await pluggy(`/accounts/${rec.accountId}`);
+      rec.balance = acct.balance ?? acct.currentBalance ?? acct.availableBalance ?? 0;
+      saveRecipients();
+      renderRecipients();
+    }
+  } catch(e) {
+    toast('Erro ao atualizar saldo: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Saldo'; }
+  }
 }
 
 // ══════════════════════════════════════
