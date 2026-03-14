@@ -936,6 +936,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
   </div>
 </div>
 
+
 <script>
 // ══════════════════════════════════════
 //  STATE
@@ -2060,28 +2061,22 @@ function copyReceiverUrl() {
 }
 
 // ══════════════════════════════════════
-//  OPEN FINANCE — CONNECT TO AUTO-FILL
+//  OPEN FINANCE — PLUGGY CONNECT WIDGET
 // ══════════════════════════════════════
 async function openPluggyConnect() {
   try {
-    // Obtém connect token via proxy — body mínimo obrigatório
     const tokenData = await pluggy('/connect-token', 'POST', {
       clientUserId: 'erp-demo-' + Date.now(),
     });
-
-    // A resposta pode vir como accessToken ou connectToken
     const token = tokenData.accessToken || tokenData.connectToken || tokenData.token;
     if (!token) {
       console.error('[OF] connect-token response:', tokenData);
       toast('Erro ao obter token: ' + (tokenData.message || tokenData.error || 'resposta inesperada'));
       return;
     }
-
-    // Carrega o widget Pluggy Connect dinamicamente
     if (!window.PluggyConnect) {
       await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2/pluggy-connect.js');
     }
-
     const connect = new window.PluggyConnect({
       connectToken: token,
       onSuccess: async ({ item }) => {
@@ -2108,6 +2103,7 @@ function loadScript(src) {
     document.head.appendChild(s);
   });
 }
+
 
 async function handleOFAccountSelect(itemId) {
   try {
@@ -2214,6 +2210,9 @@ async function refreshBalance(recipientId) {
     if (btn) { btn.disabled = false; btn.textContent = '↺ Saldo'; }
   }
 }
+
+function fmtCPFField(el){let v=el.value.replace(/\D/g,'').slice(0,11);v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2');el.value=v}
+function fmtCNPJField(el){let v=el.value.replace(/\D/g,'').slice(0,14);v=v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');el.value=v}
 
 // ══════════════════════════════════════
 //  INIT
