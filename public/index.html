@@ -2064,16 +2064,16 @@ function copyReceiverUrl() {
 // ══════════════════════════════════════
 async function openPluggyConnect() {
   try {
-    // Obtém connect token via proxy
+    // Obtém connect token via proxy — body mínimo obrigatório
     const tokenData = await pluggy('/connect-token', 'POST', {
-      clientUserId: 'erp-demo-user',
-      options: {
-        products: ['ACCOUNTS','IDENTITY'],
-        webhook: `${window.location.origin}/api/webhook`,
-      },
+      clientUserId: 'erp-demo-' + Date.now(),
     });
-    if (!tokenData.accessToken) {
-      toast('Erro ao obter token de conexão');
+
+    // A resposta pode vir como accessToken ou connectToken
+    const token = tokenData.accessToken || tokenData.connectToken || tokenData.token;
+    if (!token) {
+      console.error('[OF] connect-token response:', tokenData);
+      toast('Erro ao obter token: ' + (tokenData.message || tokenData.error || 'resposta inesperada'));
       return;
     }
 
@@ -2083,7 +2083,7 @@ async function openPluggyConnect() {
     }
 
     const connect = new window.PluggyConnect({
-      connectToken: tokenData.accessToken,
+      connectToken: token,
       onSuccess: async ({ item }) => {
         connect.destroy();
         await handleOFAccountSelect(item.id);
