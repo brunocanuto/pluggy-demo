@@ -2075,7 +2075,7 @@ async function openPluggyConnect() {
       return;
     }
     if (!window.PluggyConnect) {
-      await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2/pluggy-connect.js');
+      await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js');
     }
     const connect = new window.PluggyConnect({
       connectToken: token,
