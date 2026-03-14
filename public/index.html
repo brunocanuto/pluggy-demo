@@ -2074,10 +2074,19 @@ async function openPluggyConnect() {
       toast('Erro ao obter token: ' + (tokenData.message || tokenData.error || 'resposta inesperada'));
       return;
     }
-    if (!window.PluggyConnect) {
-      await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js');
+
+    // Carrega script com cache-busting para garantir versão correta
+    await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js', true);
+
+    // O construtor pode estar em diferentes nomes dependendo da versão
+    const Constructor = window.PluggyConnect || window.PluggyConnector || window.pluggyConnect;
+    if (!Constructor) {
+      console.error('[OF] window keys:', Object.keys(window).filter(k=>k.toLowerCase().includes('pluggy')));
+      toast('Widget não carregado. Verifique o console.');
+      return;
     }
-    const connect = new window.PluggyConnect({
+
+    const connect = new Constructor({
       connectToken: token,
       onSuccess: async ({ item }) => {
         connect.destroy();
@@ -2095,11 +2104,26 @@ async function openPluggyConnect() {
   }
 }
 
-function loadScript(src) {
+function loadScript(src, forceReload = false) {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    // Remove script antigo se forceReload
+    if (forceReload) {
+      const old = document.querySelector(`script[data-pluggy-connect]`);
+      if (old) old.remove();
+      // Limpa referências antigas
+      delete window.PluggyConnect;
+      delete window.PluggyConnector;
+    }
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing && !forceReload) { resolve(); return; }
     const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
+    s.src = src;
+    s.setAttribute('data-pluggy-connect', '1');
+    s.onload = () => {
+      console.log('[OF] script carregado. window.PluggyConnect:', typeof window.PluggyConnect);
+      resolve();
+    };
+    s.onerror = () => reject(new Error('Falha ao carregar script do widget'));
     document.head.appendChild(s);
   });
 }
