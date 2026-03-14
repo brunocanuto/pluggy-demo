@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Pluggy Pagamentos — Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:-apple-system,'Segoe UI',sans-serif;font-size:15px}
+:root{--green:#1D9E75;--green-dk:#0F6E56;--green-lt:#E1F5EE;--navy:#1a1a2e;--red:#E24B4A;--amber:#BA7517;--amber-lt:#FFF3D6;--border:#e8e8e8;--bg:#f8f9fb;--card:#fff;--text:#1a1a1a;--muted:#888;--muted2:#bbb}
+
+/* ── SHELL ── */
+.shell{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{height:52px;background:var(--navy);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.tb-logo{font-size:17px;font-weight:600;color:#fff}.tb-logo span{color:var(--green)}
+.tb-sep{flex:1}
+.tb-co{font-size:12px;color:rgba(255,255,255,.45)}
+.tb-status{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,.6)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#555}
+.status-dot.ok{background:var(--green)}
+.status-dot.err{background:var(--red)}
+.tb-av{width:34px;height:34px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff}
+
+/* ── TAB NAV ── */
+.tab-nav{display:flex;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px 8px;font-size:11px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;gap:3px;white-space:nowrap;min-width:90px}
+.tab-btn.on{color:var(--green);border-bottom-color:var(--green);font-weight:600}
+.tab-btn .ico{font-size:20px}
+
+/* ── PANELS ── */
+.panels{flex:1;overflow:hidden;position:relative}
+.panel{display:none;height:100%;overflow-y:auto;padding:20px 28px;background:var(--bg)}
+.panel.on{display:block}
+
+/* ── TYPOGRAPHY ── */
+.ph{font-size:20px;font-weight:700;color:var(--text);margin-bottom:4px}
+.ps{font-size:13px;color:var(--muted);margin-bottom:20px}
+.sec{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;margin-top:20px}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+.card+.card{margin-top:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* ── FORMS ── */
+.field{margin-bottom:14px}
+.lbl{font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.inp,.sel,.txa{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;-webkit-user-select:text;user-select:text;appearance:none}
+.inp:focus,.sel:focus{outline:none;border-color:var(--green)}
+.sel{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.inp-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── BUTTONS ── */
+.btn{padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:inherit;white-space:nowrap;transition:all .15s}
+.btn-green{background:var(--green);color:#fff}.btn-green:active{background:var(--green-dk)}
+.btn-outline{background:#fff;color:var(--muted);border:1px solid var(--border)}.btn-outline:active{background:var(--bg)}
+.btn-red{background:#FCEBEB;color:#A32D2D;border:1px solid #FFCDD2}
+.btn-sm{padding:7px 14px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-full{width:100%}
+
+/* ── RECIPIENT CARDS ── */
+.recipient-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.rec-ico{width:44px;height:44px;border-radius:12px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.rec-name{font-size:14px;font-weight:600;color:var(--text)}
+.rec-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.rec-actions{margin-left:auto;display:flex;gap:8px}
+
+/* ── KPI CARDS ── */
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.kpi-l{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500}
+.kpi-v{font-size:24px;font-weight:700;color:var(--text)}
+.kpi-v.g{color:var(--green)}.kpi-v.r{color:var(--red)}.kpi-v.a{color:var(--amber)}
+
+/* ── PAYMENT RESULT ── */
+.result-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center}
+.qr-wrap{width:180px;height:180px;margin:0 auto 16px;background:#f5f5f5;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pay-url{font-size:12px;color:var(--green);word-break:break-all;background:var(--green-lt);padding:10px 14px;border-radius:8px;cursor:pointer;margin-bottom:16px;font-family:monospace}
+.status-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:99px;font-size:13px;font-weight:600}
+.status-bar.waiting{background:#FFF3D6;color:#854F0B}
+.status-bar.paid{background:var(--green-lt);color:var(--green-dk)}
+.status-bar.failed{background:#FCEBEB;color:#A32D2D}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pulse-green{animation:pulse 1s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── HISTORY TABLE ── */
+.htable{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.htable th{padding:7px 10px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid var(--border);background:#fafafa}
+.htable td{padding:9px 10px;border-bottom:1px solid #f5f5f5;color:var(--text)}
+.htable tr:last-child td{border-bottom:none}
+.chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:600;white-space:nowrap}
+.chip-g{background:var(--green-lt);color:var(--green-dk)}
+.chip-a{background:var(--amber-lt);color:#854F0B}
+.chip-r{background:#FCEBEB;color:#A32D2D}
+.chip-n{background:#f0f0f0;color:var(--muted)}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:200}
+.modal-bg.on{display:flex}
+.modal{background:#fff;border-radius:20px;padding:28px;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+
+/* ── SIMULATION STEPS ── */
+.sim-step{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid #f5f5f5}
+.sim-step:last-child{border-bottom:none}
+.sim-num{width:32px;height:32px;border-radius:50%;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0;transition:all .4s}
+.sim-num.done{background:var(--green);color:#fff}
+.sim-num.active{background:var(--navy);color:#fff}
+.sim-body .t{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.sim-body .s{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ── SMART TRANSFERS ── */
+.bank-flow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.bf-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.bf-ico{width:44px;height:44px;border-radius:12px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.bf-nm{font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px}
+.bf-bal{font-size:20px;font-weight:700}
+.arrow-center{display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--green);margin:4px 0}
+.transfer-anim{background:var(--green-lt);border:1px solid var(--green);border-radius:12px;padding:16px;text-align:center;display:none}
+.transfer-anim.on{display:block}
+
+/* ── SCHEDULE CALENDAR ── */
+.cal-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cal-day{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;background:#f0f0f0;color:var(--muted)}
+.cal-day.scheduled{background:var(--green-lt);color:var(--green-dk)}
+.cal-day.today{background:var(--green);color:#fff}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .e-ico{font-size:40px;margin-bottom:12px}
+.empty .e-txt{font-size:14px}
+
+/* ── NOTIFICATION TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div class="shell">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="3" fill="#1D9E75"/><rect x="7" y="4" width="4" height="9" rx="2" fill="#0F6E56"/><rect x="13" y="4" width="4" height="9" rx="2" fill="#0F6E56"/><circle cx="12" cy="16.5" r="2" fill="white"/></svg>
+    <div class="tb-logo">Pluggy <span>Pagamentos</span></div>
+    <div class="tb-sep"></div>
+    <div class="tb-status">
+      <div class="status-dot" id="authDot"></div>
+      <span id="authLabel">Conectando...</span>
+    </div>
+    <div style="width:12px"></div>
+    <div class="tb-co">ERP do Futuro · Metalplan S.A.</div>
+    <div style="width:8px"></div>
+    <div class="tb-av">MB</div>
+  </div>
+
+  <!-- TAB NAV -->
+  <div class="tab-nav">
+    <div class="tab-btn on" onclick="switchTab('config')" id="tab-config">
+      <span class="ico">⚙️</span>Configuração
+    </div>
+    <div class="tab-btn" onclick="switchTab('simples')" id="tab-simples">
+      <span class="ico">💚</span>Pix Simples
+    </div>
+    <div class="tab-btn" onclick="switchTab('agendado')" id="tab-agendado">
+      <span class="ico">📅</span>Pix Agendado
+    </div>
+    <div class="tab-btn" onclick="switchTab('automatico')" id="tab-automatico">
+      <span class="ico">🔄</span>Pix Automático
+    </div>
+    <div class="tab-btn" onclick="switchTab('smart')" id="tab-smart">
+      <span class="ico">🔀</span>Smart Transfers
+    </div>
+  </div>
+
+  <div class="panels">
+
+    <!-- ═══════════════════════════════════
+         PAINEL: CONFIGURAÇÃO / RECEBEDORES
+    ════════════════════════════════════ -->
+    <div class="panel on" id="panel-config">
+      <div class="ph">Configuração</div>
+      <div class="ps">Gerencie os recebedores salvos e verifique a autenticação com a Pluggy API.</div>
+
+      <div class="grid2">
+        <div>
+          <div class="sec">Recebedores cadastrados</div>
+          <div id="recipientsList">
+            <div class="empty"><div class="e-ico">🏦</div><div class="e-txt">Nenhum recebedor cadastrado.<br/>Crie um abaixo para começar.</div></div>
+          </div>
+          <button class="btn btn-green" onclick="openModal()" style="margin-top:12px">
+            + Novo Recebedor
+          </button>
+        </div>
+        <div>
+          <div class="sec">Status da API</div>
+          <div class="card">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Autenticação Pluggy</div>
+            <div id="apiStatusBox" style="font-size:14px;font-weight:600;color:var(--amber)">⏳ Autenticando...</div>
+            <div style="margin-top:12px">
+              <button class="btn btn-outline btn-sm" onclick="authenticate(true)">↺ Renovar token</button>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Histórico desta sessão</div>
+            <div id="sessionKpis" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="kpi"><div class="kpi-l">Cobranças geradas</div><div class="kpi-v g" id="kpi-total">0</div></div>
+              <div class="kpi"><div class="kpi-l">Confirmadas</div><div class="kpi-v g" id="kpi-paid">0</div></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Limpar dados da demo</div>
+            <button class="btn btn-red btn-sm" onclick="clearAll()">🗑 Apagar recebedores e histórico</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PAINEL: PIX SIMPLES
+    ════════════════════════════════════ -->
+    <div class="panel" id="panel-simples">
+      <div class="ph">Pix Simples</div>
+      <div class="ps">Gere um link de pagamento instantâneo. O cliente paga em segundos pelo celular.</div>
+
+      <div class="grid2">
+        <!-- FORM -->
+        <div>
+          <div class="card">
+            <div class="field">
+              <div class="lbl">Recebedor</div>
+              <select class="sel" id="sim-recipient">
+                <option value="">Selecione um recebedor...</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="lbl">Valor (R$)</div>
+              <input class="inp" type="number" id="sim-amount" placeholder="0,00" min="0.01" step="0.01" value="1.00" inputmode="decimal"/>
+            </div>
+            <div class="field">
+              <div class="lbl">Descrição</div>
+              <input class="inp" id="sim-desc" placeholder="Ex: Mensalidade março/2026" value="Demo Pluggy — ERP do Futuro"/>
+            </div>
+            <button class="btn btn-green btn-full" id="sim-btn" onclick="createSimples()">
+              💚 Gerar Cobrança Pix
+            </button>
+          </div>
+        </div>
+
+        <!-- RESULT -->
+        <div>
+          <div id="sim-result-empty" class="empty" style="padding:60px 20px">
+            <div class="e-ico">📱</div>
+            <div class="e-txt">Gere uma cobrança para ver o QR code aqui</div>
+          </div>
+          <div id="sim-result" style="display:none">
+            <div class="result-box">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Escaneie com o celular</div>
+              <div class="qr-wrap" id="sim-qr"></div>
+              <div class="pay-url" id="sim-url" onclick="copyUrl('sim-url')">—</div>
+              <div class="status-bar waiting" id="sim-status">
+                <span class="spin">⏳</span> Aguardando pagamento...
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:8px">Toque na URL para copiar · Polling automático a cada 3s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div style="margin-top:24px">
+        <div class="sec">Histórico de cobranças simples</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="simples-history">
+            <div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Nenhuma cobrança gerada ainda</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PAINEL: PIX AGENDADO
+    ════════════════════════════════════ -->
+    <div class="panel" id="panel-agendado">
+      <div class="ph">Pix Agendado</div>
+      <div class="ps">Programe cobranças únicas ou recorrentes. O cliente autoriza uma vez e o débito ocorre automaticamente.</div>
+
+      <div class="grid2">
+        <!-- FORM -->
+        <div>
+          <div class="card">
+            <div class="field">
+              <div class="lbl">Recebedor</div>
+              <select class="sel" id="sch-recipient">
+                <option value="">Selecione um recebedor...</option>
+              </select>
+            </div>
+            <div class="inp-row">
+              <div class="field">
+                <div class="lbl">Valor (R$)</div>
+                <input class="inp" type="number" id="sch-amount" placeholder="0,00" min="0.01" step="0.01" value="99.90" inputmode="decimal"/>
+              </div>
+              <div class="field">
+                <div class="lbl">Periodicidade</div>
+                <select class="sel" id="sch-type" onchange="updateScheduleUI()">
+                  <option value="SINGLE">Único (futuro)</option>
+                  <option value="WEEKLY">Semanal</option>
+                  <option value="MONTHLY" selected>Mensal</option>
+                </select>
+              </div>
+            </div>
+            <div class="inp-row">
+              <div class="field">
+                <div class="lbl">Data de início</div>
+                <input class="inp" type="date" id="sch-date"/>
+              </div>
+              <div class="field" id="sch-occurrences-field">
+                <div class="lbl">Nº de cobranças</div>
+                <input class="inp" type="number" id="sch-occurrences" min="1" max="60" value="12"/>
+              </div>
+            </div>
+            <div class="field">
+              <div class="lbl">Descrição</div>
+              <input class="inp" id="sch-desc" placeholder="Ex: Mensalidade SaaS ERP" value="Assinatura ERP do Futuro"/>
+            </div>
+            <button class="btn btn-green btn-full" id="sch-btn" onclick="createAgendado()">
+              📅 Criar Agendamento
+            </button>
+          </div>
+        </div>
+
+        <!-- RESULT + CALENDAR -->
+        <div>
+          <div id="sch-result-empty" class="empty" style="padding:60px 20px">
+            <div class="e-ico">📅</div>
+            <div class="e-txt">Configure o agendamento e gere o link</div>
+          </div>
+          <div id="sch-result" style="display:none">
+            <div class="result-box">
+              <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Link de autorização do agendamento</div>
+              <div class="qr-wrap" id="sch-qr"></div>
+              <div class="pay-url" id="sch-url" onclick="copyUrl('sch-url')">—</div>
+              <div class="status-bar waiting" id="sch-status">
+                <span class="spin">⏳</span> Aguardando autorização...
+              </div>
+            </div>
+            <div class="card" style="margin-top:12px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:8px">Próximas cobranças previstas</div>
+              <div class="cal-row" id="sch-calendar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div style="margin-top:24px">
+        <div class="sec">Histórico de agendamentos</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="agendado-history">
+            <div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Nenhum agendamento criado ainda</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PAINEL: PIX AUTOMÁTICO
+    ════════════════════════════════════ -->
+    <div class="panel" id="panel-automatico">
+      <div class="ph">Pix Automático</div>
+      <div class="ps">Débito automático de qualquer banco para qualquer banco via Open Finance. Zero boleto, zero inadimplência.</div>
+
+      <div class="grid2">
+        <!-- CONFIG -->
+        <div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:600;margin-bottom:14px">Cenário de demonstração</div>
+            <div class="field">
+              <div class="lbl">Tipo de negócio</div>
+              <select class="sel" id="auto-ctx" onchange="updateAutoCtx()">
+                <option value="academia">🏋️ Academia — mensalidade R$ 89,90</option>
+                <option value="saas">💻 SaaS / ERP — assinatura R$ 299,00</option>
+                <option value="cond">🏢 Condomínio — taxa R$ 450,00</option>
+                <option value="escola">🎓 Escola — mensalidade R$ 780,00</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="lbl">Cliente pagador</div>
+              <input class="inp" id="auto-payer" value="Metalplan Indústria S.A."/>
+            </div>
+            <div class="field">
+              <div class="lbl">Dia de cobrança</div>
+              <select class="sel" id="auto-day">
+                <option value="5">Todo dia 5</option>
+                <option value="10">Todo dia 10</option>
+                <option value="15">Todo dia 15</option>
+                <option value="20">Todo dia 20</option>
+              </select>
+            </div>
+            <button class="btn btn-green btn-full" onclick="runAutoSimulation()">
+              🔄 Simular fluxo completo
+            </button>
+          </div>
+
+          <div class="card" style="margin-top:12px;background:#F0FBF7;border-color:#A8DFCD">
+            <div style="font-size:12px;font-weight:700;color:var(--green-dk);margin-bottom:8px">📊 Impacto financeiro</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div><div style="font-size:11px;color:var(--muted)">Taxa vs boleto</div><div style="font-size:16px;font-weight:700;color:var(--green)">-90%</div></div>
+              <div><div style="font-size:11px;color:var(--muted)">Redução inadimplência</div><div style="font-size:16px;font-weight:700;color:var(--green)">até 65%</div></div>
+              <div><div style="font-size:11px;color:var(--muted)">Cancelamento automático</div><div style="font-size:16px;font-weight:700;color:var(--green)">✓ Sim</div></div>
+              <div><div style="font-size:11px;color:var(--muted)">Retentativa automática</div><div style="font-size:16px;font-weight:700;color:var(--green)">✓ Sim</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIMULATION STEPS -->
+        <div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px" id="auto-title">Fluxo: Academia — mensalidade</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:16px" id="auto-subtitle">R$ 89,90 · todo dia 5 · Metalplan Ind.</div>
+            <div id="auto-steps">
+              <div class="sim-step" id="as0">
+                <div class="sim-num" id="asn0">1</div>
+                <div class="sim-body"><div class="t">ERP gera solicitação de débito automático</div><div class="s">Pluggy cria um consentimento Open Finance com as condições da cobrança</div></div>
+              </div>
+              <div class="sim-step" id="as1">
+                <div class="sim-num" id="asn1">2</div>
+                <div class="sim-body"><div class="t">Cliente recebe link no e-mail / WhatsApp</div><div class="s">Link aponta para o app do banco do cliente para autorização</div></div>
+              </div>
+              <div class="sim-step" id="as2">
+                <div class="sim-num" id="asn2">3</div>
+                <div class="sim-body"><div class="t">Cliente autoriza no app do banco</div><div class="s">Qualquer banco do Brasil via Open Finance — sem trocar de conta</div></div>
+              </div>
+              <div class="sim-step" id="as3">
+                <div class="sim-num" id="asn3">4</div>
+                <div class="sim-body"><div class="t">Débito automático ativado</div><div class="s">Pluggy executa a cobrança na data combinada — com retentativa automática em caso de falha</div></div>
+              </div>
+              <div class="sim-step" id="as4">
+                <div class="sim-num" id="asn4">5</div>
+                <div class="sim-body"><div class="t">ERP recebe confirmação via webhook</div><div class="s">Conciliação automática + status atualizado em tempo real no ERP</div></div>
+              </div>
+            </div>
+            <div class="transfer-anim" id="auto-success">
+              <div style="font-size:32px;margin-bottom:8px">✅</div>
+              <div style="font-size:15px;font-weight:700;color:var(--green-dk);margin-bottom:4px">Pix Automático ativado!</div>
+              <div style="font-size:12px;color:var(--muted)" id="auto-success-msg">Próxima cobrança: dia 5 de abril · R$ 89,90</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════
+         PAINEL: SMART TRANSFERS
+    ════════════════════════════════════ -->
+    <div class="panel" id="panel-smart">
+      <div class="ph">Smart Transfers</div>
+      <div class="ps">Orquestração inteligente de transferências multi-banco. Concentre saldo, pague fornecedores e gerencie caixa automaticamente.</div>
+
+      <div class="grid2">
+        <!-- RULES CONFIG -->
+        <div>
+          <div class="card">
+            <div style="font-size:13px;font-weight:600;margin-bottom:14px">Configurar regra de concentração</div>
+            <div class="field">
+              <div class="lbl">Conta de origem (excesso)</div>
+              <select class="sel" id="st-from">
+                <option value="brad">Bradesco · R$ 43.280</option>
+                <option value="nu">Nubank · R$ 28.450</option>
+                <option value="sant">Santander · R$ 67.100</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="lbl">Conta de destino</div>
+              <select class="sel" id="st-to">
+                <option value="btg">BTG Pactual (concentrador)</option>
+                <option value="brad">Bradesco</option>
+                <option value="sant">Santander</option>
+              </select>
+            </div>
+            <div class="inp-row">
+              <div class="field">
+                <div class="lbl">Saldo mínimo a manter</div>
+                <input class="inp" type="number" id="st-min" value="5000" inputmode="numeric"/>
+              </div>
+              <div class="field">
+                <div class="lbl">Transferir excesso</div>
+                <select class="sel" id="st-timing">
+                  <option>Agora (manual)</option>
+                  <option>Diário 18h</option>
+                  <option>Sexta-feira</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-green btn-full" onclick="runSmartTransfer()">
+              🔀 Executar Smart Transfer
+            </button>
+          </div>
+
+          <div class="card" style="margin-top:12px;background:#F0FBF7;border-color:#A8DFCD">
+            <div style="font-size:12px;font-weight:700;color:var(--green-dk);margin-bottom:8px">💡 Casos de uso comuns</div>
+            <div style="font-size:12px;color:#444;line-height:1.7">
+              ✓ Concentrar recebimentos de múltiplas contas<br/>
+              ✓ Pagamento automático de folha e fornecedores<br/>
+              ✓ Gestão de limite de conta corrente<br/>
+              ✓ Transferência programada entre matrizes e filiais
+            </div>
+          </div>
+        </div>
+
+        <!-- BANK OVERVIEW + ANIMATION -->
+        <div>
+          <div class="sec">Saldo por conta (tempo real)</div>
+          <div class="bank-flow">
+            <div class="bf-card">
+              <div class="bf-ico" style="background:#CC000020;color:#CC0000">B</div>
+              <div class="bf-nm">Bradesco</div>
+              <div class="bf-bal" style="color:var(--text)" id="st-bal-brad">R$&nbsp;43.280</div>
+            </div>
+            <div class="bf-card">
+              <div class="bf-ico" style="background:#8A05BE20;color:#8A05BE">NU</div>
+              <div class="bf-nm">Nubank</div>
+              <div class="bf-bal" style="color:var(--text)" id="st-bal-nu">R$&nbsp;28.450</div>
+            </div>
+            <div class="bf-card">
+              <div class="bf-ico" style="background:#EC000020;color:#EC0000">S</div>
+              <div class="bf-nm">Santander</div>
+              <div class="bf-bal" style="color:var(--text)" id="st-bal-sant">R$&nbsp;67.100</div>
+            </div>
+          </div>
+
+          <div class="arrow-center">↓</div>
+
+          <div class="bank-flow" style="grid-template-columns:1fr">
+            <div class="bf-card" style="border-color:var(--green);background:#F0FBF7">
+              <div class="bf-ico" style="background:#003087;color:#fff;margin:0 auto 10px">BTG</div>
+              <div class="bf-nm" style="text-align:center">BTG Pactual — Conta Concentradora</div>
+              <div class="bf-bal" style="text-align:center;color:var(--green)" id="st-bal-btg">R$&nbsp;0</div>
+            </div>
+          </div>
+
+          <div class="transfer-anim" id="st-anim" style="margin-top:12px">
+            <div style="font-size:24px;margin-bottom:8px" id="st-anim-ico">⏳</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px" id="st-anim-title">Executando transferência...</div>
+            <div style="font-size:12px;color:var(--muted)" id="st-anim-sub">Aguarde</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panels -->
+</div><!-- /shell -->
+
+<!-- ═══════════════════
+     MODAL: NOVO RECEBEDOR
+════════════════════ -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-title">Novo Recebedor</div>
+    <div class="field">
+      <div class="lbl">Nome / Razão social</div>
+      <input class="inp" id="m-name" placeholder="Ex: Metalplan Indústria S.A."/>
+    </div>
+    <div class="inp-row">
+      <div class="field">
+        <div class="lbl">CPF/CNPJ</div>
+        <input class="inp" id="m-tax" placeholder="00.000.000/0001-00" oninput="fmtTax(this)" inputmode="numeric"/>
+      </div>
+      <div class="field">
+        <div class="lbl">Tipo de conta</div>
+        <select class="sel" id="m-acct-type">
+          <option value="CHECKING_ACCOUNT">Corrente</option>
+          <option value="SAVINGS_ACCOUNT">Poupança</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl">Instituição bancária</div>
+      <select class="sel" id="m-institution">
+        <option value="">Carregando...</option>
+      </select>
+    </div>
+    <div class="inp-row">
+      <div class="field">
+        <div class="lbl">Agência</div>
+        <input class="inp" id="m-branch" placeholder="0001" inputmode="numeric"/>
+      </div>
+      <div class="field">
+        <div class="lbl">Número da conta</div>
+        <input class="inp" id="m-number" placeholder="123456" inputmode="numeric"/>
+      </div>
+    </div>
+    <div id="modal-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn btn-outline btn-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-green btn-full" id="modal-save-btn" onclick="saveRecipient()">Salvar Recebedor</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+const S = {
+  apiKey: null,
+  recipients: [],    // {id, name, taxNumber, institutionName, branch, number}
+  institutions: [],  // {id, name}
+  history: [],       // {id, type, amount, desc, url, status, recipientName, createdAt}
+  pollingId: null,
+  currentRequestId: null,
+  currentTab: 'config',
+};
+
+// ══════════════════════════════════════
+//  API HELPER
+// ══════════════════════════════════════
+async function pluggy(endpoint, method='GET', body=null) {
+  if (!S.apiKey && endpoint !== '/auth') await authenticate();
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, method, body, apiKey: S.apiKey }),
+  });
+  const data = await res.json();
+  if (res.status === 401) {
+    await authenticate();
+    return pluggy(endpoint, method, body);
+  }
+  return data;
+}
+
+// ══════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════
+async function authenticate(manual=false) {
+  try {
+    setAuthStatus('loading');
+    const data = await pluggy('/auth', 'POST');
+    if (data.apiKey) {
+      S.apiKey = data.apiKey;
+      setAuthStatus('ok');
+      if (manual) toast('Token renovado com sucesso');
+      return true;
+    } else {
+      setAuthStatus('error');
+      return false;
+    }
+  } catch(e) {
+    setAuthStatus('error');
+    return false;
+  }
+}
+
+function setAuthStatus(state) {
+  const dot = document.getElementById('authDot');
+  const lbl = document.getElementById('authLabel');
+  const box = document.getElementById('apiStatusBox');
+  if (state === 'ok') {
+    dot.className='status-dot ok';
+    lbl.textContent='API conectada';
+    if(box) { box.textContent='✅ Autenticado — token ativo'; box.style.color='var(--green)'; }
+  } else if (state === 'error') {
+    dot.className='status-dot err';
+    lbl.textContent='Erro de API';
+    if(box) { box.textContent='❌ Falha na autenticação. Verifique as variáveis de ambiente no Vercel.'; box.style.color='var(--red)'; }
+  } else {
+    dot.className='status-dot';
+    lbl.textContent='Conectando...';
+    if(box) { box.textContent='⏳ Autenticando...'; box.style.color='var(--amber)'; }
+  }
+}
+
+// ══════════════════════════════════════
+//  TAB NAVIGATION
+// ══════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tab-'+tab).classList.add('on');
+  document.getElementById('panel-'+tab).classList.add('on');
+  S.currentTab = tab;
+}
+
+// ══════════════════════════════════════
+//  INSTITUTIONS
+// ══════════════════════════════════════
+async function loadInstitutions() {
+  try {
+    const data = await pluggy('/payments/recipients/institutions');
+    if (data && Array.isArray(data.results)) {
+      S.institutions = data.results;
+    } else if (data && Array.isArray(data)) {
+      S.institutions = data;
+    }
+    populateInstitutionDropdown();
+  } catch(e) {
+    // fallback — deixar o campo como texto
+    const sel = document.getElementById('m-institution');
+    if (sel) sel.outerHTML = '<input class="inp" id="m-institution" placeholder="ID da instituição (UUID)" />';
+  }
+}
+
+function populateInstitutionDropdown() {
+  const sel = document.getElementById('m-institution');
+  if (!sel || S.institutions.length === 0) return;
+  sel.innerHTML = '<option value="">Selecione o banco...</option>' +
+    S.institutions.map(i => `<option value="${i.id}">${i.name || i.tradeName || i.id}</option>`).join('');
+}
+
+// ══════════════════════════════════════
+//  RECIPIENTS
+// ══════════════════════════════════════
+function loadRecipients() {
+  try { S.recipients = JSON.parse(localStorage.getItem('pluggy_recipients') || '[]'); } catch { S.recipients = []; }
+  renderRecipients();
+  updateRecipientDropdowns();
+}
+
+function saveRecipients() {
+  localStorage.setItem('pluggy_recipients', JSON.stringify(S.recipients));
+}
+
+function renderRecipients() {
+  const el = document.getElementById('recipientsList');
+  if (!el) return;
+  if (S.recipients.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="e-ico">🏦</div><div class="e-txt">Nenhum recebedor cadastrado.<br/>Crie um abaixo para começar.</div></div>';
+    return;
+  }
+  el.innerHTML = S.recipients.map(r => `
+    <div class="recipient-card">
+      <div class="rec-ico">🏦</div>
+      <div>
+        <div class="rec-name">${r.name}</div>
+        <div class="rec-sub">${r.taxNumber} · ${r.institutionName || 'banco'} · ag.${r.branch} cc.****${r.number.slice(-4)}</div>
+        <div style="font-size:10px;color:var(--muted2);margin-top:2px;font-family:monospace">ID: ${r.id.substring(0,16)}...</div>
+      </div>
+      <div class="rec-actions">
+        <button class="btn btn-red btn-sm" onclick="deleteRecipient('${r.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateRecipientDropdowns() {
+  ['sim-recipient','sch-recipient'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Selecione um recebedor...</option>' +
+      S.recipients.map(r => `<option value="${r.id}">${r.name} · ${r.institutionName||'banco'}</option>`).join('');
+  });
+}
+
+async function saveRecipient() {
+  const name = document.getElementById('m-name').value.trim();
+  const tax  = document.getElementById('m-tax').value.replace(/\D/g,'');
+  const institutionId = document.getElementById('m-institution').value;
+  const branch = document.getElementById('m-branch').value.trim();
+  const number = document.getElementById('m-number').value.trim();
+  const acctType = document.getElementById('m-acct-type').value;
+  const errEl = document.getElementById('modal-error');
+
+  if (!name || !tax || !institutionId || !branch || !number) {
+    errEl.style.display='block';
+    errEl.textContent='Preencha todos os campos.';
+    return;
+  }
+
+  const btn = document.getElementById('modal-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  errEl.style.display='none';
+
+  try {
+    const payload = {
+      name,
+      taxNumber: tax,
+      paymentInstitutionId: institutionId,
+      account: { branch, number, type: acctType },
+    };
+    const result = await pluggy('/payments/recipients', 'POST', payload);
+
+    if (result.id) {
+      const inst = S.institutions.find(i=>i.id===institutionId);
+      S.recipients.push({
+        id: result.id,
+        name,
+        taxNumber: tax,
+        institutionName: inst ? (inst.name||inst.tradeName) : institutionId.substring(0,8),
+        branch,
+        number,
+      });
+      saveRecipients();
+      renderRecipients();
+      updateRecipientDropdowns();
+      closeModal();
+      toast('Recebedor criado com sucesso!');
+    } else {
+      errEl.style.display='block';
+      errEl.textContent = result.message || result.error || 'Erro ao criar recebedor. Verifique os dados.';
+    }
+  } catch(e) {
+    errEl.style.display='block';
+    errEl.textContent = 'Erro de rede: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar Recebedor';
+  }
+}
+
+function deleteRecipient(id) {
+  S.recipients = S.recipients.filter(r => r.id !== id);
+  saveRecipients();
+  renderRecipients();
+  updateRecipientDropdowns();
+  toast('Recebedor removido');
+}
+
+function openModal() {
+  document.getElementById('modal-bg').classList.add('on');
+  document.getElementById('m-name').value='';
+  document.getElementById('m-tax').value='';
+  document.getElementById('m-branch').value='';
+  document.getElementById('m-number').value='';
+  document.getElementById('modal-error').style.display='none';
+  populateInstitutionDropdown();
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('on'); }
+
+// ══════════════════════════════════════
+//  PIX SIMPLES
+// ══════════════════════════════════════
+async function createSimples() {
+  const recipientId = document.getElementById('sim-recipient').value;
+  const amount = parseFloat(document.getElementById('sim-amount').value);
+  const description = document.getElementById('sim-desc').value.trim();
+
+  if (!recipientId) { toast('Selecione um recebedor'); return; }
+  if (!amount || amount <= 0) { toast('Informe um valor válido'); return; }
+
+  const btn = document.getElementById('sim-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando...';
+  stopPolling();
+
+  try {
+    const result = await pluggy('/payments/requests', 'POST', {
+      amount,
+      description: description || 'Cobrança Pluggy Demo',
+      recipientId,
+    });
+
+    if (result.paymentUrl) {
+      showSimplesResult(result);
+      addHistory({ id: result.id, type: 'PIX_SIMPLES', amount, desc: description,
+                   url: result.paymentUrl, status: 'CREATED',
+                   recipientName: S.recipients.find(r=>r.id===recipientId)?.name || '—',
+                   createdAt: new Date().toLocaleTimeString('pt-BR') });
+      startPolling(result.id, 'sim');
+    } else {
+      toast('Erro: ' + (result.message || result.error || 'resposta inesperada'));
+    }
+  } catch(e) {
+    toast('Erro de rede: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💚 Gerar Cobrança Pix';
+  }
+}
+
+function showSimplesResult(result) {
+  document.getElementById('sim-result-empty').style.display='none';
+  document.getElementById('sim-result').style.display='block';
+  document.getElementById('sim-url').textContent = result.paymentUrl;
+  document.getElementById('sim-status').className = 'status-bar waiting';
+  document.getElementById('sim-status').innerHTML = '<span class="spin">⏳</span> Aguardando pagamento...';
+  genQR('sim-qr', result.paymentUrl);
+  S.currentRequestId = result.id;
+}
+
+// ══════════════════════════════════════
+//  PIX AGENDADO
+// ══════════════════════════════════════
+function updateScheduleUI() {
+  const type = document.getElementById('sch-type').value;
+  document.getElementById('sch-occurrences-field').style.display = type === 'SINGLE' ? 'none' : 'block';
+}
+
+async function createAgendado() {
+  const recipientId = document.getElementById('sch-recipient').value;
+  const amount = parseFloat(document.getElementById('sch-amount').value);
+  const type = document.getElementById('sch-type').value;
+  const startDate = document.getElementById('sch-date').value;
+  const occurrences = parseInt(document.getElementById('sch-occurrences').value) || 12;
+  const description = document.getElementById('sch-desc').value.trim();
+
+  if (!recipientId) { toast('Selecione um recebedor'); return; }
+  if (!amount || amount <= 0) { toast('Informe um valor válido'); return; }
+  if (!startDate) { toast('Informe a data de início'); return; }
+
+  const btn = document.getElementById('sch-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Criando agendamento...';
+
+  const schedule = { type, startDate };
+  if (type !== 'SINGLE') schedule.occurrences = occurrences;
+
+  try {
+    const result = await pluggy('/payments/requests', 'POST', {
+      amount, description: description || 'Agendamento Pluggy Demo',
+      recipientId, schedule,
+    });
+
+    if (result.paymentUrl) {
+      showAgendadoResult(result, type, startDate, occurrences, amount);
+      addHistory({ id: result.id, type: 'PIX_AGENDADO_'+type, amount, desc: description,
+                   url: result.paymentUrl, status: 'CREATED',
+                   recipientName: S.recipients.find(r=>r.id===recipientId)?.name || '—',
+                   createdAt: new Date().toLocaleTimeString('pt-BR') });
+      startPolling(result.id, 'sch');
+    } else {
+      toast('Erro: ' + (result.message || result.error || 'resposta inesperada'));
+    }
+  } catch(e) {
+    toast('Erro: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📅 Criar Agendamento';
+  }
+}
+
+function showAgendadoResult(result, type, startDate, occurrences, amount) {
+  document.getElementById('sch-result-empty').style.display='none';
+  document.getElementById('sch-result').style.display='block';
+  document.getElementById('sch-url').textContent = result.paymentUrl;
+  document.getElementById('sch-status').className = 'status-bar waiting';
+  document.getElementById('sch-status').innerHTML = '<span class="spin">⏳</span> Aguardando autorização...';
+  genQR('sch-qr', result.paymentUrl);
+  renderCalendar(type, startDate, occurrences, amount);
+}
+
+function renderCalendar(type, startDate, occurrences, amount) {
+  const cal = document.getElementById('sch-calendar');
+  if (!cal) return;
+  const dates = [];
+  const start = new Date(startDate + 'T12:00:00');
+  const max = type === 'SINGLE' ? 1 : Math.min(occurrences, 8);
+  for (let i = 0; i < max; i++) {
+    const d = new Date(start);
+    if (type === 'WEEKLY') d.setDate(d.getDate() + i*7);
+    else if (type === 'MONTHLY') d.setMonth(d.getMonth() + i);
+    dates.push(d);
+  }
+  const today = new Date().toDateString();
+  cal.innerHTML = dates.map(d => {
+    const label = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const cls = d.toDateString()===today?'today':'scheduled';
+    return `<div class="cal-day ${cls}" title="R$ ${amount.toFixed(2)}">${label}</div>`;
+  }).join('') + (type!=='SINGLE'&&occurrences>8?`<div class="cal-day" style="background:transparent;color:var(--muted)">+${occurrences-8}</div>`:'');
+}
+
+// ══════════════════════════════════════
+//  POLLING
+// ══════════════════════════════════════
+function startPolling(requestId, prefix) {
+  stopPolling();
+  S.pollingId = setInterval(async () => {
+    try {
+      const data = await pluggy(`/payments/requests/${requestId}`);
+      const status = data.status;
+      if (['PAID','PROCESSED','COMPLETED'].includes(status)) {
+        updatePaymentStatus(prefix, 'paid');
+        updateHistoryStatus(requestId, 'PAID');
+        stopPolling();
+        updateKpis();
+      } else if (['FAILED','CANCELLED','ERROR'].includes(status)) {
+        updatePaymentStatus(prefix, 'failed');
+        updateHistoryStatus(requestId, 'FAILED');
+        stopPolling();
+      }
+    } catch { /* ignore polling errors */ }
+  }, 3000);
+}
+
+function stopPolling() {
+  if (S.pollingId) { clearInterval(S.pollingId); S.pollingId = null; }
+}
+
+function updatePaymentStatus(prefix, state) {
+  const el = document.getElementById(prefix+'-status');
+  if (!el) return;
+  if (state === 'paid') {
+    el.className = 'status-bar paid';
+    el.innerHTML = '✅ Pagamento confirmado!';
+  } else {
+    el.className = 'status-bar failed';
+    el.innerHTML = '❌ Falhou ou cancelado';
+  }
+}
+
+// ══════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════
+function loadHistory() {
+  try { S.history = JSON.parse(localStorage.getItem('pluggy_history') || '[]'); } catch { S.history = []; }
+  renderHistory();
+  updateKpis();
+}
+
+function addHistory(item) {
+  S.history.unshift(item);
+  localStorage.setItem('pluggy_history', JSON.stringify(S.history.slice(0,50)));
+  renderHistory();
+  updateKpis();
+}
+
+function updateHistoryStatus(id, status) {
+  const item = S.history.find(h=>h.id===id);
+  if (item) {
+    item.status = status;
+    localStorage.setItem('pluggy_history', JSON.stringify(S.history.slice(0,50)));
+    renderHistory();
+    updateKpis();
+  }
+}
+
+function renderHistory() {
+  ['simples','agendado'].forEach(type => {
+    const el = document.getElementById(type+'-history');
+    if (!el) return;
+    const filter = type === 'simples' ? 'PIX_SIMPLES' : 'PIX_AGENDADO';
+    const items = S.history.filter(h => h.type.startsWith(filter));
+    if (items.length === 0) {
+      el.innerHTML = `<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">Nenhum registro ainda</div>`;
+      return;
+    }
+    el.innerHTML = `<table class="htable">
+      <thead><tr><th>Horário</th><th>Recebedor</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead>
+      <tbody>${items.map(h=>`
+        <tr>
+          <td>${h.createdAt}</td>
+          <td>${h.recipientName}</td>
+          <td style="color:var(--muted);font-size:11px">${h.desc||'—'}</td>
+          <td style="font-weight:600">R$ ${parseFloat(h.amount).toFixed(2)}</td>
+          <td>${statusChip(h.status)}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  });
+}
+
+function statusChip(s) {
+  if (['PAID','PROCESSED','COMPLETED'].includes(s)) return `<span class="chip chip-g">✓ Pago</span>`;
+  if (['FAILED','CANCELLED','ERROR'].includes(s)) return `<span class="chip chip-r">✗ Falhou</span>`;
+  return `<span class="chip chip-a">⏳ Pendente</span>`;
+}
+
+function updateKpis() {
+  const total = S.history.length;
+  const paid = S.history.filter(h=>['PAID','PROCESSED','COMPLETED'].includes(h.status)).length;
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-paid').textContent = paid;
+}
+
+// ══════════════════════════════════════
+//  PIX AUTOMÁTICO SIMULATION
+// ══════════════════════════════════════
+const autoCtxData = {
+  academia: { title:'Academia — mensalidade', val:'R$ 89,90', emoji:'🏋️' },
+  saas: { title:'SaaS / ERP — assinatura', val:'R$ 299,00', emoji:'💻' },
+  cond: { title:'Condomínio — taxa mensal', val:'R$ 450,00', emoji:'🏢' },
+  escola: { title:'Escola — mensalidade', val:'R$ 780,00', emoji:'🎓' },
+};
+
+function updateAutoCtx() {
+  const ctx = document.getElementById('auto-ctx').value;
+  const d = autoCtxData[ctx];
+  const day = document.getElementById('auto-day').value;
+  const payer = document.getElementById('auto-payer').value;
+  document.getElementById('auto-title').textContent = `Fluxo: ${d.title}`;
+  document.getElementById('auto-subtitle').textContent = `${d.val} · todo dia ${day} · ${payer}`;
+  resetAutoSteps();
+  document.getElementById('auto-success').classList.remove('on');
+}
+
+function resetAutoSteps() {
+  for (let i=0;i<5;i++) {
+    document.getElementById('asn'+i).className='sim-num';
+    document.getElementById('asn'+i).textContent=i+1;
+  }
+}
+
+async function runAutoSimulation() {
+  resetAutoSteps();
+  document.getElementById('auto-success').classList.remove('on');
+  for (let i=0;i<5;i++) {
+    document.getElementById('asn'+i).className='sim-num active';
+    await sleep(900);
+    document.getElementById('asn'+i).className='sim-num done';
+    document.getElementById('asn'+i).textContent='✓';
+  }
+  const ctx = document.getElementById('auto-ctx').value;
+  const d = autoCtxData[ctx];
+  const day = document.getElementById('auto-day').value;
+  const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth()+1);
+  document.getElementById('auto-success-msg').textContent =
+    `Próxima cobrança: dia ${day} de ${nextMonth.toLocaleDateString('pt-BR',{month:'long'})} · ${d.val}`;
+  document.getElementById('auto-success').classList.add('on');
+}
+
+// ══════════════════════════════════════
+//  SMART TRANSFERS SIMULATION
+// ══════════════════════════════════════
+const balances = { brad: 43280, nu: 28450, sant: 67100, btg: 0 };
+const bankNames = { brad:'Bradesco', nu:'Nubank', sant:'Santander', btg:'BTG' };
+
+async function runSmartTransfer() {
+  const from = document.getElementById('st-from').value;
+  const to = document.getElementById('st-to').value;
+  const min = parseFloat(document.getElementById('st-min').value) || 5000;
+  const fromBal = balances[from];
+  const excess = fromBal - min;
+
+  if (excess <= 0) { toast(`Saldo do ${bankNames[from]} já está abaixo do mínimo`); return; }
+
+  const anim = document.getElementById('st-anim');
+  anim.classList.add('on');
+  document.getElementById('st-anim-ico').textContent='⏳';
+  document.getElementById('st-anim-title').textContent='Iniciando Smart Transfer...';
+  document.getElementById('st-anim-sub').textContent=`Movendo R$ ${fmt(excess)} do ${bankNames[from]} para ${bankNames[to]}`;
+
+  await sleep(600);
+  document.getElementById('st-anim-ico').textContent='🔄';
+  document.getElementById('st-anim-title').textContent='Executando via Open Finance...';
+
+  // Animate balance change
+  const steps = 20;
+  for (let i=1;i<=steps;i++) {
+    await sleep(50);
+    const moved = Math.round(excess * i/steps);
+    document.getElementById('st-bal-'+from).textContent = `R$ ${fmt(fromBal-moved)}`;
+    document.getElementById('st-bal-btg').textContent = `R$ ${fmt(balances.btg+moved)}`;
+  }
+  balances[from] = min;
+  balances.btg += excess;
+
+  await sleep(400);
+  document.getElementById('st-anim-ico').textContent='✅';
+  document.getElementById('st-anim-title').textContent='Transferência concluída!';
+  document.getElementById('st-anim-sub').textContent=
+    `R$ ${fmt(excess)} transferidos com sucesso · Saldo mínimo mantido: R$ ${fmt(min)}`;
+}
+
+function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
+
+// ══════════════════════════════════════
+//  QR CODE
+// ══════════════════════════════════════
+function genQR(containerId, url) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  try {
+    new QRCode(el, { text: url, width: 160, height: 160,
+      colorDark:'#1a1a2e', colorLight:'#ffffff',
+      correctLevel: QRCode.CorrectLevel.M });
+  } catch {
+    el.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:10px;text-align:center">QR indisponível<br/>use o link abaixo</div>`;
+  }
+}
+
+function copyUrl(elId) {
+  const txt = document.getElementById(elId)?.textContent || '';
+  navigator.clipboard.writeText(txt).then(() => toast('Link copiado!')).catch(()=>{});
+}
+
+// ══════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtTax(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (v.length <= 11) {
+    v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2');
+  } else {
+    v=v.slice(0,14);
+    v=v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');
+  }
+  el.value = v;
+}
+
+function clearAll() {
+  if (!confirm('Apagar todos os recebedores e histórico de pagamentos?')) return;
+  localStorage.removeItem('pluggy_recipients');
+  localStorage.removeItem('pluggy_history');
+  S.recipients = [];
+  S.history = [];
+  renderRecipients();
+  renderHistory();
+  updateRecipientDropdowns();
+  updateKpis();
+  toast('Dados limpos');
+}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+(async function init() {
+  // Set default date to tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const d = document.getElementById('sch-date');
+  if (d) d.value = tomorrow.toISOString().split('T')[0];
+
+  loadRecipients();
+  loadHistory();
+  updateScheduleUI();
+  updateAutoCtx();
+
+  await authenticate();
+  await loadInstitutions();
+})();
+</script>
+</body>
+</html>
