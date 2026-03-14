@@ -742,28 +742,33 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
             <div class="field">
               <div class="lbl">Evento</div>
               <select class="sel" id="wh-event">
+                <option value="all">all — todos os eventos</option>
                 <optgroup label="Pix Automático">
-                  <option value="automatic_pix/consent_authorized">automatic_pix/consent_authorized</option>
-                  <option value="automatic_pix/consent_cancelled">automatic_pix/consent_cancelled</option>
-                  <option value="automatic_pix/consent_expired">automatic_pix/consent_expired</option>
-                  <option value="automatic_pix/payment_scheduled">automatic_pix/payment_scheduled</option>
-                  <option value="automatic_pix/payment_completed">automatic_pix/payment_completed</option>
-                  <option value="automatic_pix/payment_failed">automatic_pix/payment_failed</option>
-                  <option value="automatic_pix/payment_cancelled">automatic_pix/payment_cancelled</option>
-                  <option value="automatic_pix/retry_scheduled">automatic_pix/retry_scheduled</option>
+                  <option value="automatic_pix_payment/created">automatic_pix_payment/created</option>
+                  <option value="automatic_pix_payment/completed">automatic_pix_payment/completed</option>
+                  <option value="automatic_pix_payment/error">automatic_pix_payment/error</option>
+                  <option value="automatic_pix_payment/canceled">automatic_pix_payment/canceled</option>
                 </optgroup>
                 <optgroup label="Pagamento Simples">
                   <option value="payment_intent/created">payment_intent/created</option>
                   <option value="payment_intent/completed">payment_intent/completed</option>
+                  <option value="payment_intent/waiting_payer_authorization">payment_intent/waiting_payer_authorization</option>
                   <option value="payment_intent/error">payment_intent/error</option>
-                  <option value="payment_intent/expired">payment_intent/expired</option>
+                  <option value="payment_request/updated">payment_request/updated</option>
                 </optgroup>
                 <optgroup label="Pix Agendado">
                   <option value="scheduled_payment/created">scheduled_payment/created</option>
                   <option value="scheduled_payment/completed">scheduled_payment/completed</option>
                   <option value="scheduled_payment/error">scheduled_payment/error</option>
-                  <option value="scheduled_payment/all_created">scheduled_payment/all_created</option>
+                  <option value="scheduled_payment/canceled">scheduled_payment/canceled</option>
                   <option value="scheduled_payment/all_completed">scheduled_payment/all_completed</option>
+                  <option value="scheduled_payment/all_created">scheduled_payment/all_created</option>
+                </optgroup>
+                <optgroup label="Smart Transfers">
+                  <option value="smart_transfer_preauthorization/completed">smart_transfer_preauthorization/completed</option>
+                  <option value="smart_transfer_preauthorization/error">smart_transfer_preauthorization/error</option>
+                  <option value="smart_transfer_payment/completed">smart_transfer_payment/completed</option>
+                  <option value="smart_transfer_payment/error">smart_transfer_payment/error</option>
                 </optgroup>
                 <optgroup label="Dados / Conexão">
                   <option value="item/created">item/created</option>
@@ -771,14 +776,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
                   <option value="item/error">item/error</option>
                   <option value="item/deleted">item/deleted</option>
                   <option value="item/waiting_user_input">item/waiting_user_input</option>
+                  <option value="item/waiting_user_action">item/waiting_user_action</option>
+                  <option value="item/login_succeeded">item/login_succeeded</option>
                   <option value="connector/status_updated">connector/status_updated</option>
+                  <option value="transactions/created">transactions/created</option>
+                  <option value="transactions/updated">transactions/updated</option>
                   <option value="transactions/deleted">transactions/deleted</option>
-                </optgroup>
-                <optgroup label="Smart Transfers">
-                  <option value="smart_transfer/preauthorization_created">smart_transfer/preauthorization_created</option>
-                  <option value="smart_transfer/payment_created">smart_transfer/payment_created</option>
-                  <option value="smart_transfer/payment_completed">smart_transfer/payment_completed</option>
-                  <option value="smart_transfer/payment_error">smart_transfer/payment_error</option>
+                  <option value="boleto/updated">boleto/updated</option>
                 </optgroup>
               </select>
             </div>
@@ -1722,34 +1726,38 @@ function clearAll() {
 //  WEBHOOKS
 // ══════════════════════════════════════
 const WEBHOOK_PAYLOADS = {
-  'automatic_pix/consent_authorized':  '{\n  "event": "automatic_pix/consent_authorized",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
-  'automatic_pix/consent_cancelled':   '{\n  "event": "automatic_pix/consent_cancelled",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
-  'automatic_pix/consent_expired':     '{\n  "event": "automatic_pix/consent_expired",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
-  'automatic_pix/payment_scheduled':   '{\n  "event": "automatic_pix/payment_scheduled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "dueDate": "2025-07-01",\n  "amount": 99.90\n}',
-  'automatic_pix/payment_completed':   '{\n  "event": "automatic_pix/payment_completed",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "amount": 99.90\n}',
-  'automatic_pix/payment_failed':      '{\n  "event": "automatic_pix/payment_failed",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
-  'automatic_pix/payment_cancelled':   '{\n  "event": "automatic_pix/payment_cancelled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
-  'automatic_pix/retry_scheduled':     '{\n  "event": "automatic_pix/retry_scheduled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "retryDate": "2025-07-03"\n}',
-  'payment_intent/created':      '{\n  "event": "payment_intent/created",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
-  'payment_intent/completed':    '{\n  "event": "payment_intent/completed",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
-  'payment_intent/error':        '{\n  "event": "payment_intent/error",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-...",\n  "error": { "code": "PAYMENT_FAILED" }\n}',
-  'payment_intent/expired':      '{\n  "event": "payment_intent/expired",\n  "paymentRequestId": "bb236f8d-..."\n}',
-  'scheduled_payment/created':   '{\n  "event": "scheduled_payment/created",\n  "paymentRequestId": "a0ed730e-...",\n  "paymentIntentId": "056b8046-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
-  'scheduled_payment/completed': '{\n  "event": "scheduled_payment/completed",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
-  'scheduled_payment/error':     '{\n  "event": "scheduled_payment/error",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
-  'scheduled_payment/all_created':   '{\n  "event": "scheduled_payment/all_created",\n  "paymentRequestId": "a0ed730e-..."\n}',
+  'all': '{\n  "event": "<qualquer evento>",\n  "...": "todos os eventos serão recebidos nesta URL"\n}',
+  'automatic_pix_payment/created':   '{\n  "event": "automatic_pix_payment/created",\n  "paymentRequestId": "bb236f8d-...",\n  "automaticPixPaymentId": "c1d2e3f4-...",\n  "amount": 99.90,\n  "dueDate": "2025-07-01"\n}',
+  'automatic_pix_payment/completed': '{\n  "event": "automatic_pix_payment/completed",\n  "paymentRequestId": "bb236f8d-...",\n  "automaticPixPaymentId": "c1d2e3f4-...",\n  "amount": 99.90\n}',
+  'automatic_pix_payment/error':     '{\n  "event": "automatic_pix_payment/error",\n  "paymentRequestId": "bb236f8d-...",\n  "automaticPixPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
+  'automatic_pix_payment/canceled':  '{\n  "event": "automatic_pix_payment/canceled",\n  "paymentRequestId": "bb236f8d-...",\n  "automaticPixPaymentId": "c1d2e3f4-..."\n}',
+  'payment_intent/created':          '{\n  "event": "payment_intent/created",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
+  'payment_intent/completed':        '{\n  "event": "payment_intent/completed",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
+  'payment_intent/waiting_payer_authorization': '{\n  "event": "payment_intent/waiting_payer_authorization",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
+  'payment_intent/error':            '{\n  "event": "payment_intent/error",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-...",\n  "error": { "code": "PAYMENT_FAILED" }\n}',
+  'payment_request/updated':         '{\n  "event": "payment_request/updated",\n  "paymentRequestId": "bb236f8d-...",\n  "status": "COMPLETED"\n}',
+  'scheduled_payment/created':       '{\n  "event": "scheduled_payment/created",\n  "paymentRequestId": "a0ed730e-...",\n  "paymentIntentId": "056b8046-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
+  'scheduled_payment/completed':     '{\n  "event": "scheduled_payment/completed",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
+  'scheduled_payment/error':         '{\n  "event": "scheduled_payment/error",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
+  'scheduled_payment/canceled':      '{\n  "event": "scheduled_payment/canceled",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
   'scheduled_payment/all_completed': '{\n  "event": "scheduled_payment/all_completed",\n  "paymentRequestId": "a0ed730e-..."\n}',
-  'item/created':                '{\n  "event": "item/created",\n  "itemId": "f4d5e6f7-...",\n  "clientUserId": "user-123"\n}',
-  'item/updated':                '{\n  "event": "item/updated",\n  "itemId": "f4d5e6f7-...",\n  "status": "UPDATED"\n}',
-  'item/error':                  '{\n  "event": "item/error",\n  "itemId": "f4d5e6f7-...",\n  "error": { "code": "INVALID_CREDENTIALS" }\n}',
-  'item/deleted':                '{\n  "event": "item/deleted",\n  "itemId": "f4d5e6f7-..."\n}',
-  'item/waiting_user_input':     '{\n  "event": "item/waiting_user_input",\n  "itemId": "f4d5e6f7-...",\n  "parameter": { "name": "token", "type": "mfa" }\n}',
-  'connector/status_updated':    '{\n  "event": "connector/status_updated",\n  "connectorId": 201,\n  "status": "ONLINE"\n}',
-  'transactions/deleted':        '{\n  "event": "transactions/deleted",\n  "itemId": "f4d5e6f7-...",\n  "count": 12\n}',
-  'smart_transfer/preauthorization_created': '{\n  "event": "smart_transfer/preauthorization_created",\n  "preauthorizationId": "d9e8f7a6-..."\n}',
-  'smart_transfer/payment_created':   '{\n  "event": "smart_transfer/payment_created",\n  "paymentId": "a1b2c3d4-...",\n  "preauthorizationId": "d9e8f7a6-..."\n}',
-  'smart_transfer/payment_completed': '{\n  "event": "smart_transfer/payment_completed",\n  "paymentId": "a1b2c3d4-...",\n  "amount": 15000\n}',
-  'smart_transfer/payment_error':     '{\n  "event": "smart_transfer/payment_error",\n  "paymentId": "a1b2c3d4-...",\n  "error": { "code": "INSUFFICIENT_BALANCE" }\n}',
+  'scheduled_payment/all_created':   '{\n  "event": "scheduled_payment/all_created",\n  "paymentRequestId": "a0ed730e-..."\n}',
+  'smart_transfer_preauthorization/completed': '{\n  "event": "smart_transfer_preauthorization/completed",\n  "preauthorizationId": "d9e8f7a6-..."\n}',
+  'smart_transfer_preauthorization/error':     '{\n  "event": "smart_transfer_preauthorization/error",\n  "preauthorizationId": "d9e8f7a6-...",\n  "error": { "code": "AUTHORIZATION_FAILED" }\n}',
+  'smart_transfer_payment/completed': '{\n  "event": "smart_transfer_payment/completed",\n  "paymentId": "a1b2c3d4-...",\n  "amount": 15000\n}',
+  'smart_transfer_payment/error':     '{\n  "event": "smart_transfer_payment/error",\n  "paymentId": "a1b2c3d4-...",\n  "error": { "code": "INSUFFICIENT_BALANCE" }\n}',
+  'item/created':           '{\n  "event": "item/created",\n  "itemId": "f4d5e6f7-...",\n  "clientUserId": "user-123"\n}',
+  'item/updated':           '{\n  "event": "item/updated",\n  "itemId": "f4d5e6f7-...",\n  "status": "UPDATED"\n}',
+  'item/error':             '{\n  "event": "item/error",\n  "itemId": "f4d5e6f7-...",\n  "error": { "code": "INVALID_CREDENTIALS" }\n}',
+  'item/deleted':           '{\n  "event": "item/deleted",\n  "itemId": "f4d5e6f7-..."\n}',
+  'item/waiting_user_input':  '{\n  "event": "item/waiting_user_input",\n  "itemId": "f4d5e6f7-...",\n  "parameter": { "name": "token", "type": "mfa" }\n}',
+  'item/waiting_user_action': '{\n  "event": "item/waiting_user_action",\n  "itemId": "f4d5e6f7-..."\n}',
+  'item/login_succeeded':     '{\n  "event": "item/login_succeeded",\n  "itemId": "f4d5e6f7-..."\n}',
+  'connector/status_updated': '{\n  "event": "connector/status_updated",\n  "connectorId": 201,\n  "status": "ONLINE"\n}',
+  'transactions/created':   '{\n  "event": "transactions/created",\n  "itemId": "f4d5e6f7-...",\n  "count": 5\n}',
+  'transactions/updated':   '{\n  "event": "transactions/updated",\n  "itemId": "f4d5e6f7-...",\n  "count": 3\n}',
+  'transactions/deleted':   '{\n  "event": "transactions/deleted",\n  "itemId": "f4d5e6f7-...",\n  "count": 12\n}',
+  'boleto/updated':         '{\n  "event": "boleto/updated",\n  "boletoId": "b1c2d3e4-...",\n  "status": "PAID"\n}',
 };
 
 // Atualiza preview do payload ao trocar evento
@@ -1855,29 +1863,37 @@ let whLastTs = 0;
 let whEvents = [];
 
 const EVENT_COLORS = {
-  'automatic_pix/consent_authorized':  { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
-  'automatic_pix/consent_cancelled':   { bg:'#FFF3D6', color:'#854F0B', icon:'❌' },
-  'automatic_pix/consent_expired':     { bg:'#FFF3D6', color:'#854F0B', icon:'⏰' },
-  'automatic_pix/payment_scheduled':   { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
-  'automatic_pix/payment_completed':   { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
-  'automatic_pix/payment_failed':      { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
-  'automatic_pix/payment_cancelled':   { bg:'#FFF3D6', color:'#854F0B', icon:'🚫' },
-  'automatic_pix/retry_scheduled':     { bg:'#EEF2FF', color:'#3730A3', icon:'🔄' },
-  'payment_intent/completed':    { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
-  'payment_intent/created':      { bg:'#EEF2FF', color:'#3730A3', icon:'🆕' },
-  'payment_intent/error':        { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
-  'payment_intent/expired':      { bg:'#FFF3D6', color:'#854F0B', icon:'⏰' },
-  'scheduled_payment/completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
-  'scheduled_payment/created':   { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
-  'scheduled_payment/error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'automatic_pix_payment/created':   { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
+  'automatic_pix_payment/completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'automatic_pix_payment/error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'automatic_pix_payment/canceled':  { bg:'#FFF3D6', color:'#854F0B', icon:'🚫' },
+  'payment_intent/completed':        { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'payment_intent/created':          { bg:'#EEF2FF', color:'#3730A3', icon:'🆕' },
+  'payment_intent/waiting_payer_authorization': { bg:'#FFF3D6', color:'#854F0B', icon:'⏳' },
+  'payment_intent/error':            { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'payment_request/updated':         { bg:'#EEF2FF', color:'#3730A3', icon:'🔄' },
+  'scheduled_payment/completed':     { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'scheduled_payment/created':       { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
+  'scheduled_payment/error':         { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'scheduled_payment/canceled':      { bg:'#FFF3D6', color:'#854F0B', icon:'🚫' },
   'scheduled_payment/all_completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🎉' },
   'scheduled_payment/all_created':   { bg:'#EEF2FF', color:'#3730A3', icon:'📋' },
-  'item/created':                { bg:'#EEF2FF', color:'#3730A3', icon:'🔗' },
-  'item/updated':                { bg:'#F0FBF7', color:'#0F6E56', icon:'🔄' },
-  'item/error':                  { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
-  'item/deleted':                { bg:'#FFF3D6', color:'#854F0B', icon:'🗑' },
-  'smart_transfer/payment_completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🔀' },
-  'smart_transfer/payment_error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'smart_transfer_preauthorization/completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🔀' },
+  'smart_transfer_preauthorization/error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'smart_transfer_payment/completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🔀' },
+  'smart_transfer_payment/error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'item/created':          { bg:'#EEF2FF', color:'#3730A3', icon:'🔗' },
+  'item/updated':          { bg:'#F0FBF7', color:'#0F6E56', icon:'🔄' },
+  'item/error':            { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'item/deleted':          { bg:'#FFF3D6', color:'#854F0B', icon:'🗑' },
+  'item/waiting_user_input':  { bg:'#FFF3D6', color:'#854F0B', icon:'⏳' },
+  'item/waiting_user_action': { bg:'#FFF3D6', color:'#854F0B', icon:'👆' },
+  'item/login_succeeded':     { bg:'#E1F5EE', color:'#0F6E56', icon:'🔓' },
+  'connector/status_updated': { bg:'#EEF2FF', color:'#3730A3', icon:'📡' },
+  'transactions/created':     { bg:'#E1F5EE', color:'#0F6E56', icon:'💳' },
+  'transactions/updated':     { bg:'#EEF2FF', color:'#3730A3', icon:'✏️' },
+  'transactions/deleted':     { bg:'#FFF3D6', color:'#854F0B', icon:'🗑' },
+  'boleto/updated':           { bg:'#EEF2FF', color:'#3730A3', icon:'📄' },
 };
 
 function togglePolling() {
