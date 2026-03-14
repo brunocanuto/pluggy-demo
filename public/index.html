@@ -656,20 +656,42 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
         </div>
       </div>
 
-      <!-- LOG DE EVENTOS -->
+      <!-- LOG DE EVENTOS AO VIVO -->
       <div style="margin-top:24px">
-        <div class="sec">Log de eventos recebidos nesta sessão</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="sec" style="margin:0">Eventos recebidos ao vivo</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+              <span class="status-dot" id="wh-poll-dot"></span>
+              <span id="wh-poll-label">Parado</span>
+            </div>
+            <button class="btn btn-outline btn-sm" id="wh-poll-btn" onclick="togglePolling()">▶ Iniciar monitoramento</button>
+            <button class="btn btn-outline btn-sm" onclick="clearLog()">🗑 Limpar</button>
+          </div>
+        </div>
+
+        <!-- URL do receptor -->
+        <div style="background:#F8F9FF;border:1px solid #C7D2FE;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:20px">🔗</div>
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:#3730A3;margin-bottom:3px">URL do seu receptor (use esta na aba Criar webhook)</div>
+            <div id="wh-receiver-url" style="font-size:13px;font-family:monospace;color:#1a1a1a;cursor:pointer" onclick="copyReceiverUrl()">https://pluggy-demo-omega.vercel.app/api/webhook</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="copyReceiverUrl()">📋 Copiar</button>
+        </div>
+
         <div class="card" style="padding:0;overflow:hidden">
           <div id="wh-log">
-            <div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">
-              Nenhum evento recebido nesta sessão.<br/>
-              <span style="font-size:12px">Os eventos chegam via POST na URL configurada — monitore no dashboard.pluggy.ai/events</span>
+            <div style="padding:24px;text-align:center;font-size:13px;color:var(--muted)">
+              <div style="font-size:28px;margin-bottom:8px">📡</div>
+              Clique em <strong>Iniciar monitoramento</strong> para receber eventos em tempo real.<br/>
+              <span style="font-size:12px">A Pluggy fará POST nesta URL a cada evento — você verá aqui em &lt;3s.</span>
             </div>
           </div>
         </div>
         <div style="margin-top:8px;text-align:right">
           <a href="https://dashboard.pluggy.ai/events" target="_blank" style="font-size:12px;color:var(--green)">
-            Ver todos os eventos no dashboard Pluggy →
+            Ver histórico completo no dashboard Pluggy →
           </a>
         </div>
       </div>
@@ -811,6 +833,7 @@ function switchTab(tab) {
   document.getElementById('panel-'+tab).classList.add('on');
   S.currentTab = tab;
   if (tab === 'webhooks') loadWebhooks();
+  else stopWhPolling();
 }
 
 // ══════════════════════════════════════
@@ -1520,6 +1543,140 @@ async function toggleWebhook(id, isDisabled) {
   } catch(e) {
     toast('Erro: ' + e.message);
   }
+}
+
+// ══════════════════════════════════════
+//  WEBHOOK LIVE LOG
+// ══════════════════════════════════════
+let whPollingId = null;
+let whLastTs = 0;
+let whEvents = [];
+
+const EVENT_COLORS = {
+  'payment_intent/completed':    { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'payment_intent/created':      { bg:'#EEF2FF', color:'#3730A3', icon:'🆕' },
+  'payment_intent/error':        { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'payment_intent/expired':      { bg:'#FFF3D6', color:'#854F0B', icon:'⏰' },
+  'scheduled_payment/completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'scheduled_payment/created':   { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
+  'scheduled_payment/error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'scheduled_payment/all_completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🎉' },
+  'scheduled_payment/all_created':   { bg:'#EEF2FF', color:'#3730A3', icon:'📋' },
+  'item/created':                { bg:'#EEF2FF', color:'#3730A3', icon:'🔗' },
+  'item/updated':                { bg:'#F0FBF7', color:'#0F6E56', icon:'🔄' },
+  'item/error':                  { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'item/deleted':                { bg:'#FFF3D6', color:'#854F0B', icon:'🗑' },
+  'smart_transfer/payment_completed': { bg:'#E1F5EE', color:'#0F6E56', icon:'🔀' },
+  'smart_transfer/payment_error':     { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+};
+
+function togglePolling() {
+  if (whPollingId) {
+    stopWhPolling();
+  } else {
+    startWhPolling();
+  }
+}
+
+function startWhPolling() {
+  whLastTs = Date.now();
+  setWhPollStatus(true);
+  fetchWhEvents(); // imediato
+  whPollingId = setInterval(fetchWhEvents, 3000);
+}
+
+function stopWhPolling() {
+  if (whPollingId) { clearInterval(whPollingId); whPollingId = null; }
+  setWhPollStatus(false);
+}
+
+function setWhPollStatus(active) {
+  const dot   = document.getElementById('wh-poll-dot');
+  const label = document.getElementById('wh-poll-label');
+  const btn   = document.getElementById('wh-poll-btn');
+  if (!dot) return;
+  if (active) {
+    dot.className = 'status-dot ok pulse-green';
+    label.textContent = 'Monitorando — atualiza a cada 3s';
+    btn.textContent = '⏹ Parar monitoramento';
+  } else {
+    dot.className = 'status-dot';
+    label.textContent = 'Parado';
+    btn.textContent = '▶ Iniciar monitoramento';
+  }
+}
+
+async function fetchWhEvents() {
+  try {
+    const res = await fetch(`/api/webhook?since=${whLastTs}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const newEvts = data.events || [];
+    if (newEvts.length > 0) {
+      whEvents = [...newEvts, ...whEvents].slice(0, 50);
+      whLastTs = Date.now();
+      renderWhLog();
+    }
+  } catch { /* ignore fetch errors during polling */ }
+}
+
+function renderWhLog() {
+  const el = document.getElementById('wh-log');
+  if (!el) return;
+  if (whEvents.length === 0) {
+    el.innerHTML = `<div style="padding:24px;text-align:center;font-size:13px;color:var(--muted)">
+      <div style="font-size:28px;margin-bottom:8px">📡</div>
+      Aguardando eventos... Faça um pagamento para ver o webhook chegar aqui.
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<table class="htable">
+    <thead><tr>
+      <th>Horário</th><th>Evento</th><th>IDs</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+    ${whEvents.map(e => {
+      const style = EVENT_COLORS[e.event] || { bg:'#f5f5f5', color:'#555', icon:'📩' };
+      const t = new Date(e.receivedAt).toLocaleTimeString('pt-BR');
+      const ids = [
+        e.paymentRequestId && `req: ${e.paymentRequestId.substring(0,8)}...`,
+        e.paymentIntentId  && `intent: ${e.paymentIntentId.substring(0,8)}...`,
+        e.itemId           && `item: ${e.itemId.substring(0,8)}...`,
+      ].filter(Boolean).join('<br/>');
+      return `<tr>
+        <td style="white-space:nowrap;font-family:monospace;font-size:12px">${t}</td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;background:${style.bg};color:${style.color}">
+            ${style.icon} ${e.event}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--muted);font-family:monospace;line-height:1.6">${ids||'—'}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="showRawEvent('${e.id}')" style="font-size:10px;padding:4px 8px">
+            { } Raw
+          </button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function showRawEvent(id) {
+  const e = whEvents.find(x => x.id === id);
+  if (!e) return;
+  const win = window.open('', '_blank', 'width=500,height=400');
+  win.document.write(`<pre style="font-family:monospace;font-size:13px;padding:20px;background:#1a1a1a;color:#a8ff78;min-height:100vh">${JSON.stringify(e.raw, null, 2)}</pre>`);
+}
+
+function clearLog() {
+  whEvents = [];
+  renderWhLog();
+}
+
+function copyReceiverUrl() {
+  const url = document.getElementById('wh-receiver-url')?.textContent || '';
+  navigator.clipboard.writeText(url).then(() => toast('URL copiada!')).catch(()=>{});
 }
 
 // ══════════════════════════════════════
