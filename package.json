@@ -2,5 +2,10 @@
   "name": "pluggy-demo",
   "version": "1.0.0",
   "description": "Pluggy Payments Demo — ERP do Futuro",
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@vercel/kv": "^1.0.0"
+  }
 }
