@@ -742,6 +742,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
             <div class="field">
               <div class="lbl">Evento</div>
               <select class="sel" id="wh-event">
+                <optgroup label="Pix Automático">
+                  <option value="automatic_pix/consent_authorized">automatic_pix/consent_authorized</option>
+                  <option value="automatic_pix/consent_cancelled">automatic_pix/consent_cancelled</option>
+                  <option value="automatic_pix/consent_expired">automatic_pix/consent_expired</option>
+                  <option value="automatic_pix/payment_scheduled">automatic_pix/payment_scheduled</option>
+                  <option value="automatic_pix/payment_completed">automatic_pix/payment_completed</option>
+                  <option value="automatic_pix/payment_failed">automatic_pix/payment_failed</option>
+                  <option value="automatic_pix/payment_cancelled">automatic_pix/payment_cancelled</option>
+                  <option value="automatic_pix/retry_scheduled">automatic_pix/retry_scheduled</option>
+                </optgroup>
                 <optgroup label="Pagamento Simples">
                   <option value="payment_intent/created">payment_intent/created</option>
                   <option value="payment_intent/completed">payment_intent/completed</option>
@@ -1498,7 +1508,7 @@ async function createAutomatico() {
     startDate: fmtDate(startDate),
     ...(expiresAt && { expiresAt: fmtDate(expiresAt) }),
     ...(retryDays.length > 0 && { retryDays }),
-    ...(autoSchedules && { automaticSchedules: { enabled: true } }),
+    ...(autoSchedules && { schedulerConfiguration: { enabled: true } }),
     ...(intRef && { internalReference: intRef }),
     ...(cbSuccess || cbError ? {
       callbackUrls: {
@@ -1712,6 +1722,14 @@ function clearAll() {
 //  WEBHOOKS
 // ══════════════════════════════════════
 const WEBHOOK_PAYLOADS = {
+  'automatic_pix/consent_authorized':  '{\n  "event": "automatic_pix/consent_authorized",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
+  'automatic_pix/consent_cancelled':   '{\n  "event": "automatic_pix/consent_cancelled",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
+  'automatic_pix/consent_expired':     '{\n  "event": "automatic_pix/consent_expired",\n  "paymentRequestId": "bb236f8d-...",\n  "consentId": "urn:pluggy:..."\n}',
+  'automatic_pix/payment_scheduled':   '{\n  "event": "automatic_pix/payment_scheduled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "dueDate": "2025-07-01",\n  "amount": 99.90\n}',
+  'automatic_pix/payment_completed':   '{\n  "event": "automatic_pix/payment_completed",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "amount": 99.90\n}',
+  'automatic_pix/payment_failed':      '{\n  "event": "automatic_pix/payment_failed",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
+  'automatic_pix/payment_cancelled':   '{\n  "event": "automatic_pix/payment_cancelled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
+  'automatic_pix/retry_scheduled':     '{\n  "event": "automatic_pix/retry_scheduled",\n  "paymentRequestId": "bb236f8d-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "retryDate": "2025-07-03"\n}',
   'payment_intent/created':      '{\n  "event": "payment_intent/created",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
   'payment_intent/completed':    '{\n  "event": "payment_intent/completed",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
   'payment_intent/error':        '{\n  "event": "payment_intent/error",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-...",\n  "error": { "code": "PAYMENT_FAILED" }\n}',
@@ -1837,6 +1855,14 @@ let whLastTs = 0;
 let whEvents = [];
 
 const EVENT_COLORS = {
+  'automatic_pix/consent_authorized':  { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'automatic_pix/consent_cancelled':   { bg:'#FFF3D6', color:'#854F0B', icon:'❌' },
+  'automatic_pix/consent_expired':     { bg:'#FFF3D6', color:'#854F0B', icon:'⏰' },
+  'automatic_pix/payment_scheduled':   { bg:'#EEF2FF', color:'#3730A3', icon:'📅' },
+  'automatic_pix/payment_completed':   { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
+  'automatic_pix/payment_failed':      { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
+  'automatic_pix/payment_cancelled':   { bg:'#FFF3D6', color:'#854F0B', icon:'🚫' },
+  'automatic_pix/retry_scheduled':     { bg:'#EEF2FF', color:'#3730A3', icon:'🔄' },
   'payment_intent/completed':    { bg:'#E1F5EE', color:'#0F6E56', icon:'✅' },
   'payment_intent/created':      { bg:'#EEF2FF', color:'#3730A3', icon:'🆕' },
   'payment_intent/error':        { bg:'#FCEBEB', color:'#A32D2D', icon:'❌' },
