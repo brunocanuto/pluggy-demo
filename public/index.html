@@ -137,6 +137,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
 /* ── NOTIFICATION TOAST ── */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
 #toast.show{opacity:1}
+
+/* ── INSTITUTION AUTOCOMPLETE ── */
+.ac-wrap{position:relative}
+.ac-inp{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;-webkit-user-select:text;user-select:text}
+.ac-inp:focus{outline:none;border-color:var(--green)}
+.ac-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:10px;max-height:220px;overflow-y:auto;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none}
+.ac-drop.open{display:block}
+.ac-item{padding:10px 14px;font-size:14px;cursor:pointer;color:var(--text);border-bottom:1px solid #f5f5f5}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.sel{background:var(--green-lt);color:var(--green-dk)}
+.ac-item em{font-style:normal;font-weight:700;color:var(--green-dk)}
+.ac-hidden{display:none}
+
+/* ── WEBHOOKS ── */
+.wh-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.wh-ico{width:40px;height:40px;border-radius:10px;background:#EEF2FF;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.wh-event{font-size:13px;font-weight:700;color:var(--text);font-family:monospace}
+.wh-url{font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+.wh-actions{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
+.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:600}
+.badge-green{background:var(--green-lt);color:var(--green-dk)}
+.badge-red{background:#FCEBEB;color:#A32D2D}
+.badge-blue{background:#EEF2FF;color:#3730A3}
 </style>
 </head>
 <body>
@@ -175,6 +198,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
     </div>
     <div class="tab-btn" onclick="switchTab('smart')" id="tab-smart">
       <span class="ico">🔀</span>Smart Transfers
+    </div>
+    <div class="tab-btn" onclick="switchTab('webhooks')" id="tab-webhooks">
+      <span class="ico">🔔</span>Webhooks
     </div>
   </div>
 
@@ -553,6 +579,102 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
       </div>
     </div>
 
+    <!-- ═══════════════════════════════════
+         PAINEL: WEBHOOKS
+    ════════════════════════════════════ -->
+    <div class="panel" id="panel-webhooks">
+      <div class="ph">Webhooks</div>
+      <div class="ps">Configure notificações automáticas para eventos de pagamento. A Pluggy fará um POST na sua URL a cada evento.</div>
+
+      <div class="grid2">
+        <!-- FORM CRIAR -->
+        <div>
+          <div class="sec">Criar novo webhook</div>
+          <div class="card">
+            <div class="field">
+              <div class="lbl">Evento</div>
+              <select class="sel" id="wh-event">
+                <optgroup label="Pagamento Simples">
+                  <option value="payment_intent/created">payment_intent/created</option>
+                  <option value="payment_intent/completed">payment_intent/completed</option>
+                  <option value="payment_intent/error">payment_intent/error</option>
+                  <option value="payment_intent/expired">payment_intent/expired</option>
+                </optgroup>
+                <optgroup label="Pix Agendado">
+                  <option value="scheduled_payment/created">scheduled_payment/created</option>
+                  <option value="scheduled_payment/completed">scheduled_payment/completed</option>
+                  <option value="scheduled_payment/error">scheduled_payment/error</option>
+                  <option value="scheduled_payment/all_created">scheduled_payment/all_created</option>
+                  <option value="scheduled_payment/all_completed">scheduled_payment/all_completed</option>
+                </optgroup>
+                <optgroup label="Dados / Conexão">
+                  <option value="item/created">item/created</option>
+                  <option value="item/updated">item/updated</option>
+                  <option value="item/error">item/error</option>
+                  <option value="item/deleted">item/deleted</option>
+                  <option value="item/waiting_user_input">item/waiting_user_input</option>
+                  <option value="connector/status_updated">connector/status_updated</option>
+                  <option value="transactions/deleted">transactions/deleted</option>
+                </optgroup>
+                <optgroup label="Smart Transfers">
+                  <option value="smart_transfer/preauthorization_created">smart_transfer/preauthorization_created</option>
+                  <option value="smart_transfer/payment_created">smart_transfer/payment_created</option>
+                  <option value="smart_transfer/payment_completed">smart_transfer/payment_completed</option>
+                  <option value="smart_transfer/payment_error">smart_transfer/payment_error</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="field">
+              <div class="lbl">URL de destino (HTTPS)</div>
+              <input class="inp" id="wh-url" placeholder="https://meu-erp.com/webhooks/pluggy" inputmode="url" style="-webkit-user-select:text;user-select:text"/>
+            </div>
+            <div id="wh-create-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:10px"></div>
+            <button class="btn btn-green btn-full" id="wh-create-btn" onclick="createWebhook()">
+              🔔 Registrar Webhook
+            </button>
+          </div>
+
+          <div class="card" style="margin-top:12px;background:#F8F9FF;border-color:#C7D2FE">
+            <div style="font-size:12px;font-weight:700;color:#3730A3;margin-bottom:10px">📘 Payload de exemplo</div>
+            <pre id="wh-payload-preview" style="font-size:11px;color:#444;line-height:1.6;white-space:pre-wrap;word-break:break-all;font-family:monospace">{
+  "event": "payment_intent/completed",
+  "paymentRequestId": "bb236f8d-...",
+  "paymentIntentId": "056b8046-..."
+}</pre>
+          </div>
+        </div>
+
+        <!-- LISTA -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div class="sec" style="margin:0">Webhooks cadastrados</div>
+            <button class="btn btn-outline btn-sm" onclick="loadWebhooks()">↺ Atualizar</button>
+          </div>
+          <div id="webhooks-list">
+            <div class="empty"><div class="e-ico">🔔</div><div class="e-txt">Carregando webhooks...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG DE EVENTOS -->
+      <div style="margin-top:24px">
+        <div class="sec">Log de eventos recebidos nesta sessão</div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div id="wh-log">
+            <div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">
+              Nenhum evento recebido nesta sessão.<br/>
+              <span style="font-size:12px">Os eventos chegam via POST na URL configurada — monitore no dashboard.pluggy.ai/events</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:8px;text-align:right">
+          <a href="https://dashboard.pluggy.ai/events" target="_blank" style="font-size:12px;color:var(--green)">
+            Ver todos os eventos no dashboard Pluggy →
+          </a>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /panels -->
 </div><!-- /shell -->
 
@@ -581,9 +703,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
     </div>
     <div class="field">
       <div class="lbl">Instituição bancária</div>
-      <select class="sel" id="m-institution">
-        <option value="">Carregando...</option>
-      </select>
+      <div class="ac-wrap" id="inst-ac-wrap">
+        <input class="ac-inp" id="m-institution-search" placeholder="Buscar banco..." autocomplete="off"
+          oninput="filterInstitutions(this.value)" onfocus="openAcDrop()" onblur="scheduleCloseAcDrop()"/>
+        <input type="hidden" id="m-institution"/>
+        <div class="ac-drop" id="inst-ac-drop"></div>
+      </div>
     </div>
     <div class="inp-row">
       <div class="field">
@@ -685,6 +810,7 @@ function switchTab(tab) {
   document.getElementById('tab-'+tab).classList.add('on');
   document.getElementById('panel-'+tab).classList.add('on');
   S.currentTab = tab;
+  if (tab === 'webhooks') loadWebhooks();
 }
 
 // ══════════════════════════════════════
@@ -700,17 +826,67 @@ async function loadInstitutions() {
     }
     populateInstitutionDropdown();
   } catch(e) {
-    // fallback — deixar o campo como texto
-    const sel = document.getElementById('m-institution');
-    if (sel) sel.outerHTML = '<input class="inp" id="m-institution" placeholder="ID da instituição (UUID)" />';
+    // fallback — mostra campo de texto manual
+    const wrap = document.getElementById('inst-ac-wrap');
+    if (wrap) wrap.innerHTML = '<input class="inp" id="m-institution" placeholder="ID da instituição (UUID)" style="-webkit-user-select:text;user-select:text"/>';
   }
 }
 
 function populateInstitutionDropdown() {
-  const sel = document.getElementById('m-institution');
-  if (!sel || S.institutions.length === 0) return;
-  sel.innerHTML = '<option value="">Selecione o banco...</option>' +
-    S.institutions.map(i => `<option value="${i.id}">${i.name || i.tradeName || i.id}</option>`).join('');
+  // Agora usamos autocomplete — apenas pré-renderiza o drop vazio
+  renderAcDrop('');
+}
+
+// ══════════════════════════════════════
+//  INSTITUTION AUTOCOMPLETE
+// ══════════════════════════════════════
+let acCloseTimer = null;
+
+function renderAcDrop(q) {
+  const drop = document.getElementById('inst-ac-drop');
+  if (!drop) return;
+  const list = q
+    ? S.institutions.filter(i => (i.name||i.tradeName||'').toLowerCase().includes(q.toLowerCase())).slice(0,30)
+    : S.institutions.slice(0,30);
+  if (list.length === 0) {
+    drop.innerHTML = `<div class="ac-item" style="color:var(--muted)">Nenhum resultado para "${q}"</div>`;
+    return;
+  }
+  drop.innerHTML = list.map(i => {
+    const nm = i.name || i.tradeName || i.id;
+    const highlighted = q ? nm.replace(new RegExp(`(${q})`, 'gi'), '<em>$1</em>') : nm;
+    return `<div class="ac-item" onclick="selectInstitution('${i.id}','${nm.replace(/'/g,"\\'")}')">
+      ${highlighted}
+    </div>`;
+  }).join('');
+}
+
+function filterInstitutions(q) {
+  openAcDrop();
+  renderAcDrop(q);
+}
+
+function openAcDrop() {
+  if (acCloseTimer) { clearTimeout(acCloseTimer); acCloseTimer = null; }
+  const drop = document.getElementById('inst-ac-drop');
+  if (drop && S.institutions.length > 0) {
+    renderAcDrop(document.getElementById('m-institution-search')?.value || '');
+    drop.classList.add('open');
+  }
+}
+
+function scheduleCloseAcDrop() {
+  acCloseTimer = setTimeout(() => {
+    const drop = document.getElementById('inst-ac-drop');
+    if (drop) drop.classList.remove('open');
+  }, 200);
+}
+
+function selectInstitution(id, name) {
+  document.getElementById('m-institution').value = id;
+  document.getElementById('m-institution-search').value = name;
+  const drop = document.getElementById('inst-ac-drop');
+  if (drop) drop.classList.remove('open');
 }
 
 // ══════════════════════════════════════
@@ -827,8 +1003,12 @@ function openModal() {
   document.getElementById('m-tax').value='';
   document.getElementById('m-branch').value='';
   document.getElementById('m-number').value='';
+  document.getElementById('m-institution').value='';
+  document.getElementById('m-institution-search').value='';
+  const drop = document.getElementById('inst-ac-drop');
+  if (drop) drop.classList.remove('open');
   document.getElementById('modal-error').style.display='none';
-  populateInstitutionDropdown();
+  if (S.institutions.length > 0) renderAcDrop('');
 }
 function closeModal() { document.getElementById('modal-bg').classList.remove('on'); }
 
@@ -1212,6 +1392,127 @@ function clearAll() {
   updateRecipientDropdowns();
   updateKpis();
   toast('Dados limpos');
+}
+
+// ══════════════════════════════════════
+//  WEBHOOKS
+// ══════════════════════════════════════
+const WEBHOOK_PAYLOADS = {
+  'payment_intent/created':      '{\n  "event": "payment_intent/created",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
+  'payment_intent/completed':    '{\n  "event": "payment_intent/completed",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-..."\n}',
+  'payment_intent/error':        '{\n  "event": "payment_intent/error",\n  "paymentRequestId": "bb236f8d-...",\n  "paymentIntentId": "056b8046-...",\n  "error": { "code": "PAYMENT_FAILED" }\n}',
+  'payment_intent/expired':      '{\n  "event": "payment_intent/expired",\n  "paymentRequestId": "bb236f8d-..."\n}',
+  'scheduled_payment/created':   '{\n  "event": "scheduled_payment/created",\n  "paymentRequestId": "a0ed730e-...",\n  "paymentIntentId": "056b8046-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
+  'scheduled_payment/completed': '{\n  "event": "scheduled_payment/completed",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-..."\n}',
+  'scheduled_payment/error':     '{\n  "event": "scheduled_payment/error",\n  "paymentRequestId": "a0ed730e-...",\n  "scheduledPaymentId": "c1d2e3f4-...",\n  "error": { "code": "INSUFFICIENT_FUNDS" }\n}',
+  'scheduled_payment/all_created':   '{\n  "event": "scheduled_payment/all_created",\n  "paymentRequestId": "a0ed730e-..."\n}',
+  'scheduled_payment/all_completed': '{\n  "event": "scheduled_payment/all_completed",\n  "paymentRequestId": "a0ed730e-..."\n}',
+  'item/created':                '{\n  "event": "item/created",\n  "itemId": "f4d5e6f7-...",\n  "clientUserId": "user-123"\n}',
+  'item/updated':                '{\n  "event": "item/updated",\n  "itemId": "f4d5e6f7-...",\n  "status": "UPDATED"\n}',
+  'item/error':                  '{\n  "event": "item/error",\n  "itemId": "f4d5e6f7-...",\n  "error": { "code": "INVALID_CREDENTIALS" }\n}',
+  'item/deleted':                '{\n  "event": "item/deleted",\n  "itemId": "f4d5e6f7-..."\n}',
+  'item/waiting_user_input':     '{\n  "event": "item/waiting_user_input",\n  "itemId": "f4d5e6f7-...",\n  "parameter": { "name": "token", "type": "mfa" }\n}',
+  'connector/status_updated':    '{\n  "event": "connector/status_updated",\n  "connectorId": 201,\n  "status": "ONLINE"\n}',
+  'transactions/deleted':        '{\n  "event": "transactions/deleted",\n  "itemId": "f4d5e6f7-...",\n  "count": 12\n}',
+  'smart_transfer/preauthorization_created': '{\n  "event": "smart_transfer/preauthorization_created",\n  "preauthorizationId": "d9e8f7a6-..."\n}',
+  'smart_transfer/payment_created':   '{\n  "event": "smart_transfer/payment_created",\n  "paymentId": "a1b2c3d4-...",\n  "preauthorizationId": "d9e8f7a6-..."\n}',
+  'smart_transfer/payment_completed': '{\n  "event": "smart_transfer/payment_completed",\n  "paymentId": "a1b2c3d4-...",\n  "amount": 15000\n}',
+  'smart_transfer/payment_error':     '{\n  "event": "smart_transfer/payment_error",\n  "paymentId": "a1b2c3d4-...",\n  "error": { "code": "INSUFFICIENT_BALANCE" }\n}',
+};
+
+// Atualiza preview do payload ao trocar evento
+document.addEventListener('change', e => {
+  if (e.target.id === 'wh-event') {
+    const preview = document.getElementById('wh-payload-preview');
+    if (preview) preview.textContent = WEBHOOK_PAYLOADS[e.target.value] || '{}';
+  }
+});
+
+async function loadWebhooks() {
+  const el = document.getElementById('webhooks-list');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:20px;text-align:center;font-size:13px;color:var(--muted)">⏳ Carregando...</div>';
+  try {
+    const data = await pluggy('/webhooks');
+    const list = data.results || data || [];
+    if (!list.length) {
+      el.innerHTML = '<div class="empty"><div class="e-ico">🔔</div><div class="e-txt">Nenhum webhook cadastrado ainda.</div></div>';
+      return;
+    }
+    el.innerHTML = list.map(wh => `
+      <div class="wh-card">
+        <div class="wh-ico">🔔</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            <span class="wh-event">${wh.event}</span>
+            <span class="badge ${wh.disabled ? 'badge-red' : 'badge-green'}">${wh.disabled ? 'Inativo' : 'Ativo'}</span>
+          </div>
+          <div class="wh-url" title="${wh.url}">${wh.url}</div>
+          <div style="font-size:10px;color:var(--muted2);margin-top:3px;font-family:monospace">ID: ${wh.id.substring(0,20)}...</div>
+        </div>
+        <div class="wh-actions">
+          <button class="btn btn-outline btn-sm" onclick="toggleWebhook('${wh.id}', ${!!wh.disabled})" title="${wh.disabled ? 'Ativar' : 'Desativar'}">
+            ${wh.disabled ? '▶ Ativar' : '⏸ Pausar'}
+          </button>
+          <button class="btn btn-red btn-sm" onclick="deleteWebhook('${wh.id}')">✕</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="padding:16px;font-size:13px;color:var(--red)">Erro ao carregar: ${e.message}</div>`;
+  }
+}
+
+async function createWebhook() {
+  const event = document.getElementById('wh-event').value;
+  const url   = document.getElementById('wh-url').value.trim();
+  const errEl = document.getElementById('wh-create-error');
+  const btn   = document.getElementById('wh-create-btn');
+
+  if (!url) { errEl.style.display='block'; errEl.textContent='Informe a URL de destino.'; return; }
+  if (!url.startsWith('https://')) { errEl.style.display='block'; errEl.textContent='A URL deve usar HTTPS.'; return; }
+  errEl.style.display='none';
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Registrando...';
+
+  try {
+    const result = await pluggy('/webhooks', 'POST', { event, url });
+    if (result.id) {
+      toast(`Webhook "${event}" criado com sucesso!`);
+      document.getElementById('wh-url').value = '';
+      await loadWebhooks();
+    } else {
+      errEl.style.display='block';
+      errEl.textContent = result.message || result.error || 'Erro ao criar webhook.';
+    }
+  } catch(e) {
+    errEl.style.display='block';
+    errEl.textContent = 'Erro de rede: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔔 Registrar Webhook';
+  }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Remover este webhook?')) return;
+  try {
+    await pluggy(`/webhooks/${id}`, 'DELETE');
+    toast('Webhook removido');
+    await loadWebhooks();
+  } catch(e) {
+    toast('Erro ao remover: ' + e.message);
+  }
+}
+
+async function toggleWebhook(id, isDisabled) {
+  try {
+    await pluggy(`/webhooks/${id}`, 'PATCH', { disabled: !isDisabled });
+    toast(isDisabled ? 'Webhook ativado' : 'Webhook pausado');
+    await loadWebhooks();
+  } catch(e) {
+    toast('Erro: ' + e.message);
+  }
 }
 
 // ══════════════════════════════════════
