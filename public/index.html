@@ -1345,7 +1345,7 @@ function startPolling(requestId, prefix) {
     try {
       const data = await pluggy(`/payments/requests/${requestId}`);
       const status = data.status;
-      if (['PAID','PROCESSED','COMPLETED'].includes(status)) {
+      if (['PAID','PROCESSED','COMPLETED','AUTHORIZED','CONSENTED','ACTIVE'].includes(status)) {
         updatePaymentStatus(prefix, 'paid');
         updateHistoryStatus(requestId, 'PAID');
         stopPolling();
@@ -1368,7 +1368,10 @@ function updatePaymentStatus(prefix, state) {
   if (!el) return;
   if (state === 'paid') {
     el.className = 'status-bar paid';
-    el.innerHTML = '✅ Pagamento confirmado!';
+    const msg = prefix === 'auto'
+      ? '✅ Consentimento autorizado! Débito automático ativado.'
+      : '✅ Pagamento confirmado!';
+    el.innerHTML = msg;
   } else {
     el.className = 'status-bar failed';
     el.innerHTML = '❌ Falhou ou cancelado';
@@ -1565,6 +1568,8 @@ async function createAutomatico() {
     if (result.paymentUrl || result.id) {
       const url = result.paymentUrl || `https://pay.pluggy.ai/${result.id}`;
       showAutoResult(url);
+      // Inicia polling para detectar autorização do consentimento
+      startPolling(result.id, 'auto');
       const rec = S.recipients.find(r => r.id === recipientId);
       addHistory({
         id: result.id,
@@ -1995,9 +2000,11 @@ function showRawEvent(id) {
   win.document.write(`<pre style="font-family:monospace;font-size:13px;padding:20px;background:#1a1a1a;color:#a8ff78;min-height:100vh">${JSON.stringify(e.raw, null, 2)}</pre>`);
 }
 
-function clearLog() {
+async function clearLog() {
+  try { await fetch('/api/webhook', { method: 'DELETE' }); } catch {}
   whEvents = [];
   renderWhLog();
+  toast('Log de eventos limpo');
 }
 
 function copyReceiverUrl() {
