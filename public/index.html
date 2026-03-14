@@ -609,6 +609,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
             </div>
 
             <div id="auto-create-error" style="display:none;font-size:12px;color:var(--red);background:#FFF0F0;border-radius:8px;padding:10px;margin-bottom:12px"></div>
+            <pre id="auto-debug" style="display:none;font-size:10px;background:#1a1a1a;color:#a8ff78;border-radius:8px;padding:10px;margin-bottom:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;font-family:monospace"></pre>
             <button class="btn btn-green btn-full" id="auto-btn" onclick="createAutomatico()" style="padding:14px">
               🔄 Criar solicitação de pagamento
             </button>
@@ -1484,45 +1485,46 @@ async function createAutomatico() {
 
   // Retry days selecionados
   const retryDays = [1,2,3,4,5,6,7]
-    .filter(d => document.getElementById(`retry-${d}`)?.checked)
-    .map(d => d);
+    .filter(d => document.getElementById(`retry-${d}`)?.checked);
 
   // Automatic schedules
   const autoSchedules = document.getElementById('auto-schedules-enabled')?.checked || false;
 
-  // Monta payload para Pix Automático
+  // ── PAYLOAD — campos na raiz conforme API Pluggy ──
   const payload = {
-    amount,
     description: description || 'Pix Automático — ERP do Futuro',
     recipientId,
-    automaticPix: {
-      amountType,
-      interval,
-      startDate: fmtDate(startDate),
-      ...(expiresAt && { expiresAt: fmtDate(expiresAt) }),
-      ...(retryDays.length > 0 && { retryDays }),
-      ...(autoSchedules && { automaticSchedules: { enabled: true } }),
-    },
+    interval,
+    startDate: fmtDate(startDate),
+    ...(expiresAt && { expiresAt: fmtDate(expiresAt) }),
+    ...(retryDays.length > 0 && { retryDays }),
+    ...(autoSchedules && { automaticSchedules: { enabled: true } }),
+    ...(intRef && { internalReference: intRef }),
+    ...(cbSuccess || cbError ? {
+      callbackUrls: {
+        ...(cbSuccess && { success: cbSuccess }),
+        ...(cbError   && { error:   cbError   }),
+      }
+    } : {}),
   };
+
+  // Valor: fixo → fixedAmount | variável → min/max
+  if (amountType === 'FIXED') {
+    payload.fixedAmount = amount;
+  } else {
+    payload.minimumVariableAmount = amount;
+    payload.maximumVariableAmount = amount * 1.5; // max padrão = 150% do mínimo
+  }
 
   // First Payment (se preenchido)
   const fpAmount = parseFloat(document.getElementById('auto-fp-amount').value);
   const fpDate   = document.getElementById('auto-fp-date').value;
   if (fpAmount > 0 && fpDate) {
     const fpDesc = document.getElementById('auto-fp-desc').value.trim();
-    payload.automaticPix.firstPayment = {
+    payload.firstPayment = {
       amount: fpAmount,
       date: fmtDate(fpDate),
       ...(fpDesc && { description: fpDesc }),
-    };
-  }
-
-  // Advanced settings
-  if (intRef) payload.internalReference = intRef;
-  if (cbSuccess || cbError) {
-    payload.callbackUrls = {
-      ...(cbSuccess && { success: cbSuccess }),
-      ...(cbError   && { error:   cbError   }),
     };
   }
 
@@ -1531,11 +1533,17 @@ async function createAutomatico() {
     try {
       const cust = await pluggy('/payments/customers', 'POST', {
         type: customerTax.length === 11 ? 'INDIVIDUAL' : 'BUSINESS',
-        cpf: customerTax.length === 11 ? customerTax : undefined,
-        cnpj: customerTax.length === 14 ? customerTax : undefined,
+        ...(customerTax.length === 11 ? { cpf: customerTax } : { cnpj: customerTax }),
       });
       if (cust.id) payload.customerId = cust.id;
     } catch { /* prossegue sem customerId */ }
+  }
+
+  // ── DEBUG: mostra payload exato na tela ──
+  const debugEl = document.getElementById('auto-debug');
+  if (debugEl) {
+    debugEl.style.display = 'block';
+    debugEl.textContent = JSON.stringify(payload, null, 2);
   }
 
   try {
@@ -1558,7 +1566,8 @@ async function createAutomatico() {
       toast('Pix Automático criado com sucesso!');
     } else {
       errEl.style.display='block';
-      errEl.textContent = result.message || result.error || 'Erro ao criar. Verifique os dados.';
+      const msgs = Array.isArray(result.message) ? result.message.join(' · ') : (result.message || result.error || 'Erro ao criar. Verifique os dados.');
+      errEl.textContent = msgs;
     }
   } catch(e) {
     errEl.style.display='block';
