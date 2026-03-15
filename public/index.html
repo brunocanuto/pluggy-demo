@@ -2135,6 +2135,8 @@ async function openPluggyConnect() {
       qrEl.innerHTML = '<div style="font-size:10px;word-break:break-all;color:var(--green);padding:8px">' + connectUrl + '</div>';
     }
     document.getElementById('of-qr-section').style.display = 'block';
+    // Inicia polling automaticamente ao exibir o QR
+    startQRPolling();
   } else {
     document.getElementById('of-qr-fallback').style.display = 'block';
   }
@@ -2142,29 +2144,63 @@ async function openPluggyConnect() {
 
 function startQRPolling() {
   if (ofSessionPoll) clearInterval(ofSessionPoll);
+  // Esconde os botões de ação assim que o polling começa
   document.getElementById('of-choice-btns').style.display = 'none';
-  document.getElementById('of-qr-status').innerHTML =
-    '<span style="color:var(--green);font-size:13px">📱 Aguardando o cliente conectar no celular...</span>';
+  setQRStatus('waiting', '📱 Aguardando o cliente escanear o QR code...');
+
   let attempts = 0;
+  let lastStatus = null;
+
   ofSessionPoll = setInterval(async () => {
     attempts++;
-    if (attempts > 150) {
+    if (attempts > 150) { // ~5 min
       clearInterval(ofSessionPoll);
-      document.getElementById('of-qr-status').innerHTML =
-        '<span style="color:var(--red);font-size:13px">⏰ Sessão expirada. Feche e tente novamente.</span>';
+      setQRStatus('error', '⏰ Sessão expirada. Feche e gere um novo QR code.');
       return;
     }
     try {
       const res = await fetch('/api/session?sessionId=' + ofSessionId);
       const data = await res.json();
+
+      // Atualiza status na tela conforme o celular avança
+      if (data?.status && data.status !== lastStatus) {
+        lastStatus = data.status;
+        if (data.status === 'CONNECTING') {
+          setQRStatus('connecting', '🔄 Cliente está conectando o banco no celular...');
+        } else if (data.status === 'ERROR') {
+          clearInterval(ofSessionPoll);
+          setQRStatus('error', '❌ Erro na conexão do celular. Solicite que tente novamente.');
+          document.getElementById('of-choice-btns').style.display = 'flex';
+          return;
+        }
+      }
+
+      // itemId chegou — conexão concluída!
       if (data?.itemId) {
         clearInterval(ofSessionPoll);
-        document.getElementById('of-choice-modal').classList.remove('on');
+        setQRStatus('success', '✅ Banco conectado! Carregando dados...');
         fetch('/api/session?sessionId=' + ofSessionId, { method: 'DELETE' }).catch(() => {});
+        await sleep(600);
+        document.getElementById('of-choice-modal').classList.remove('on');
         await handleOFAccountSelect(data.itemId);
       }
-    } catch {}
+    } catch(e) {
+      console.warn('[poll] erro:', e.message);
+    }
   }, 2000);
+}
+
+function setQRStatus(type, msg) {
+  const el = document.getElementById('of-qr-status');
+  if (!el) return;
+  const colors = {
+    waiting:    { color: '#888',    icon: '' },
+    connecting: { color: '#1D9E75', icon: '' },
+    success:    { color: '#1D9E75', icon: '' },
+    error:      { color: '#A32D2D', icon: '' },
+  };
+  const c = colors[type] || colors.waiting;
+  el.innerHTML = `<span style="color:${c.color};font-size:13px">${msg}</span>`;
 }
 
 async function openLocalWidget() {
