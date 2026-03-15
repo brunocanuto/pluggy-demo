@@ -3,12 +3,12 @@
 // GET  /api/webhook  — frontend busca eventos
 // DELETE /api/webhook — limpa eventos
 
-import { kv } from '@vercel/kv';
+const { kv } = require('@vercel/kv');
 
 const MAX_EVENTS = 100;
 const KV_KEY = 'pluggy_webhook_events';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-pluggy-signature');
