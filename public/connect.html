@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Conectar conta — ERP do Futuro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f8f9fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.card{background:#fff;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.1);text-align:center}
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:24px}
+.logo-mark{width:44px;height:44px;border-radius:12px;background:#1D9E75;display:flex;align-items:center;justify-content:center}
+.logo-name{font-size:18px;font-weight:700;color:#1a1a1a}
+.logo-name span{color:#1D9E75}
+.status-ico{font-size:56px;margin-bottom:16px}
+.title{font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:8px}
+.sub{font-size:14px;color:#888;line-height:1.6;margin-bottom:24px}
+.btn{width:100%;padding:15px;background:#1D9E75;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:active{background:#0F6E56}
+.btn-ghost{background:transparent;color:#888;border:1px solid #e8e8e8;margin-top:10px}
+.spinner{width:48px;height:48px;border-radius:50%;border:4px solid #E1F5EE;border-top-color:#1D9E75;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:#FFF0F0;border:1px solid #FFCDD2;border-radius:10px;padding:14px;font-size:13px;color:#A32D2D;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="2" y="9" width="18" height="11" rx="3" fill="white"/>
+        <rect x="6" y="3" width="4" height="8" rx="2" fill="white" fill-opacity=".7"/>
+        <rect x="12" y="3" width="4" height="8" rx="2" fill="white" fill-opacity=".7"/>
+        <circle cx="11" cy="14.5" r="2" fill="#1D9E75"/>
+      </svg>
+    </div>
+    <div class="logo-name">ERP <span>do Futuro</span></div>
+  </div>
+
+  <!-- State: loading -->
+  <div id="s-loading">
+    <div class="spinner"></div>
+    <div class="title">Preparando conexão...</div>
+    <div class="sub">Aguarde um momento</div>
+  </div>
+
+  <!-- State: ready to connect -->
+  <div id="s-ready" style="display:none">
+    <div class="status-ico">🏦</div>
+    <div class="title">Conecte sua conta bancária</div>
+    <div class="sub">
+      Autorize o compartilhamento dos dados da sua conta via Open Finance.<br/>
+      Seus dados são protegidos e criptografados.
+    </div>
+    <button class="btn" onclick="startConnect()">Conectar meu banco</button>
+  </div>
+
+  <!-- State: connecting -->
+  <div id="s-connecting" style="display:none">
+    <div class="spinner"></div>
+    <div class="title">Conectando...</div>
+    <div class="sub">Siga as instruções no app do seu banco</div>
+  </div>
+
+  <!-- State: success -->
+  <div id="s-success" style="display:none">
+    <div class="status-ico">✅</div>
+    <div class="title">Conta conectada!</div>
+    <div class="sub">
+      Sua conta foi vinculada com sucesso.<br/>
+      <strong>Volte ao tablet</strong> — os dados já foram preenchidos automaticamente.
+    </div>
+    <div style="margin-top:16px;padding:12px;background:#E1F5EE;border-radius:10px;font-size:12px;color:#0F6E56">
+      Pode fechar esta página com segurança.
+    </div>
+  </div>
+
+  <!-- State: error -->
+  <div id="s-error" style="display:none">
+    <div class="status-ico">❌</div>
+    <div class="title">Algo deu errado</div>
+    <div class="error-box" id="error-msg">Erro desconhecido</div>
+    <button class="btn btn-ghost" onclick="location.reload()">Tentar novamente</button>
+  </div>
+
+</div>
+
+<script src="https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const token     = params.get('token');
+const sessionId = params.get('sessionId');
+const origin    = params.get('origin') || location.origin;
+
+function show(stateId) {
+  ['loading','ready','connecting','success','error'].forEach(s => {
+    document.getElementById('s-'+s).style.display = s===stateId ? 'block' : 'none';
+  });
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+  show('error');
+}
+
+async function notifyTablet(itemId) {
+  if (!sessionId) return;
+  try {
+    await fetch(`${origin}/api/session?sessionId=${sessionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId, sessionId }),
+    });
+  } catch(e) {
+    console.error('Notify tablet failed:', e);
+  }
+}
+
+function startConnect() {
+  if (!token) { showError('Token inválido. Solicite novo QR code no tablet.'); return; }
+
+  show('connecting');
+
+  const Constructor = window.PluggyConnect || window.PluggyConnector;
+  if (!Constructor) { showError('Widget não carregado. Recarregue a página.'); return; }
+
+  const connect = new Constructor({
+    connectToken: token,
+    onSuccess: async ({ item }) => {
+      connect.destroy();
+      show('connecting');
+      await notifyTablet(item.id);
+      show('success');
+    },
+    onError: (err) => {
+      connect.destroy();
+      showError(err.message || 'Erro na conexão bancária.');
+    },
+    onClose: () => {
+      show('ready');
+    },
+  });
+  connect.init();
+}
+
+// Init
+window.addEventListener('load', () => {
+  if (!token) {
+    showError('Link inválido ou expirado. Solicite novo QR code no tablet.');
+    return;
+  }
+  show('ready');
+});
+</script>
+</body>
+</html>
