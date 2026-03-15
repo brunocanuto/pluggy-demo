@@ -956,6 +956,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
       </div>
       <div id="of-qrcode" style="width:200px;height:200px;margin:0 auto 14px;background:#f5f5f5;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
       <div id="of-qr-status" style="min-height:24px;margin-bottom:4px"></div>
+      <div id="of-qr-debug" style="display:none;margin-top:8px;padding:8px;background:#1a1a1a;border-radius:8px;font-size:10px;color:#a8ff78;font-family:monospace;text-align:left;word-break:break-all"></div>
     </div>
 
     <!-- Fallback sem token -->
@@ -2144,48 +2145,66 @@ async function openPluggyConnect() {
 
 function startQRPolling() {
   if (ofSessionPoll) clearInterval(ofSessionPoll);
-  // Esconde os botões de ação assim que o polling começa
   document.getElementById('of-choice-btns').style.display = 'none';
   setQRStatus('waiting', '📱 Aguardando o cliente escanear o QR code...');
+
+  // Mostra debug box
+  const dbg = document.getElementById('of-qr-debug');
+  if (dbg) dbg.style.display = 'block';
 
   let attempts = 0;
   let lastStatus = null;
 
+  function debugLog(msg) {
+    const dbg = document.getElementById('of-qr-debug');
+    if (!dbg) return;
+    const line = `[${new Date().toLocaleTimeString('pt-BR')}] ${msg}`;
+    dbg.textContent = line + '\n' + dbg.textContent.split('\n').slice(0,8).join('\n');
+    console.log('[QR poll]', msg);
+  }
+
+  debugLog('Polling iniciado — sessionId: ' + (ofSessionId||'?').slice(-8));
+
   ofSessionPoll = setInterval(async () => {
     attempts++;
-    if (attempts > 150) { // ~5 min
+    if (attempts > 150) {
       clearInterval(ofSessionPoll);
       setQRStatus('error', '⏰ Sessão expirada. Feche e gere um novo QR code.');
       return;
     }
-    try {
-      const res = await fetch('/api/session?sessionId=' + ofSessionId);
-      const data = await res.json();
 
-      // Atualiza status na tela conforme o celular avança
+    try {
+      const url = '/api/session?sessionId=' + encodeURIComponent(ofSessionId);
+      const res = await fetch(url);
+      const text = await res.text();
+      debugLog(`#${attempts} status:${res.status} body:${text.slice(0,80)}`);
+
+      let data;
+      try { data = JSON.parse(text); } catch { data = {}; }
+
       if (data?.status && data.status !== lastStatus) {
         lastStatus = data.status;
         if (data.status === 'CONNECTING') {
-          setQRStatus('connecting', '🔄 Cliente está conectando o banco no celular...');
+          setQRStatus('connecting', '🔄 Cliente está conectando no celular...');
         } else if (data.status === 'ERROR') {
           clearInterval(ofSessionPoll);
-          setQRStatus('error', '❌ Erro na conexão do celular. Solicite que tente novamente.');
+          setQRStatus('error', '❌ Erro na conexão. Cliente pode tentar novamente.');
           document.getElementById('of-choice-btns').style.display = 'flex';
           return;
         }
       }
 
-      // itemId chegou — conexão concluída!
       if (data?.itemId) {
         clearInterval(ofSessionPoll);
         setQRStatus('success', '✅ Banco conectado! Carregando dados...');
-        fetch('/api/session?sessionId=' + ofSessionId, { method: 'DELETE' }).catch(() => {});
+        debugLog('itemId recebido: ' + data.itemId.slice(0,16));
+        fetch('/api/session?sessionId=' + encodeURIComponent(ofSessionId), { method: 'DELETE' }).catch(() => {});
         await sleep(600);
         document.getElementById('of-choice-modal').classList.remove('on');
         await handleOFAccountSelect(data.itemId);
       }
     } catch(e) {
-      console.warn('[poll] erro:', e.message);
+      debugLog('ERRO fetch: ' + e.message);
     }
   }, 2000);
 }
