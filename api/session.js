@@ -1,32 +1,29 @@
-// api/session.js — sem dependência de @vercel/kv
-// Usa a REST API do Vercel KV diretamente via fetch nativo do Node 18+
+// api/session.js — Upstash Redis via REST (sem dependências externas)
 
-const KV_URL   = process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN;
-const TTL      = 600; // segundos
+const KV_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const TTL = 600;
 
-async function kvSet(key, value) {
-  if (!KV_URL || !KV_TOKEN) throw new Error('KV não configurado — adicione KV_REST_API_URL e KV_REST_API_TOKEN no Vercel');
-  const res = await fetch(`${KV_URL}/set/${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(value), ex: TTL }),
-  });
-  if (!res.ok) throw new Error(`KV set failed: ${res.status} ${await res.text()}`);
-}
-
-async function kvGet(key) {
-  if (!KV_URL || !KV_TOKEN) throw new Error('KV não configurado — adicione KV_REST_API_URL e KV_REST_API_TOKEN no Vercel');
+async function redisGet(key) {
+  if (!KV_URL || !KV_TOKEN) throw new Error('Redis não configurado. Adicione Upstash no Vercel → Storage.');
   const res = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
-  if (!res.ok) throw new Error(`KV get failed: ${res.status} ${await res.text()}`);
-  const data = await res.json();
-  if (data.result === null || data.result === undefined) return null;
-  try { return JSON.parse(data.result); } catch { return data.result; }
+  const json = await res.json();
+  if (json.result === null || json.result === undefined) return null;
+  try { return JSON.parse(json.result); } catch { return json.result; }
 }
 
-async function kvDel(key) {
+async function redisSet(key, value) {
+  if (!KV_URL || !KV_TOKEN) throw new Error('Redis não configurado. Adicione Upstash no Vercel → Storage.');
+  const res = await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?ex=${TTL}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
+  });
+  if (!res.ok) throw new Error('Redis set failed: ' + res.status + ' ' + await res.text());
+}
+
+async function redisDel(key) {
   if (!KV_URL || !KV_TOKEN) return;
   await fetch(`${KV_URL}/del/${encodeURIComponent(key)}`, {
     method: 'POST',
@@ -42,39 +39,47 @@ module.exports = async function handler(req, res) {
 
   const sessionId = req.query.sessionId || req.body?.sessionId;
   if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+  const key = 'sess_' + sessionId;
 
-  const key = `sess_${sessionId}`;
-
+  // POST: tablet salva token / celular salva itemId+status
   if (req.method === 'POST') {
-    const { itemId, status } = req.body || {};
+    const { token, itemId, status } = req.body || {};
     try {
-      const existing = await kvGet(key).catch(() => null) || {};
+      const existing = await redisGet(key).catch(() => null) || {};
       const updated = {
         ...existing,
+        ...(token  && { token  }),
         ...(itemId && { itemId }),
         ...(status && { status }),
         updatedAt: new Date().toISOString(),
       };
-      await kvSet(key, updated);
-      return res.status(200).json({ saved: true, data: updated });
-    } catch (err) {
+      await redisSet(key, updated);
+      return res.status(200).json({ saved: true });
+    } catch(err) {
       console.error('[session POST]', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
 
+  // GET: ?getToken=1 → celular busca token | padrão → tablet faz polling
   if (req.method === 'GET') {
     try {
-      const data = await kvGet(key);
-      return res.status(200).json(data || { itemId: null, status: null });
-    } catch (err) {
+      const data = await redisGet(key);
+      if (req.query.getToken === '1') {
+        return res.status(200).json(data || { token: null });
+      }
+      if (!data) return res.status(200).json({ itemId: null, status: null });
+      const { token: _omit, ...rest } = data;
+      return res.status(200).json(rest);
+    } catch(err) {
       console.error('[session GET]', err.message);
-      return res.status(500).json({ error: err.message, kvConfigured: !!(KV_URL && KV_TOKEN) });
+      return res.status(500).json({ error: err.message });
     }
   }
 
+  // DELETE: cleanup
   if (req.method === 'DELETE') {
-    await kvDel(key);
+    await redisDel(key);
     return res.status(200).json({ deleted: true });
   }
 
