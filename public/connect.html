@@ -105,13 +105,16 @@ function showError(msg) {
   show('error');
 }
 
-async function notifyTablet(itemId) {
+async function notifyTablet(itemId, status) {
   if (!sessionId) return;
   try {
+    const body = { sessionId };
+    if (itemId) body.itemId = itemId;
+    if (status) body.status = status;
     await fetch(`${origin}/api/session?sessionId=${sessionId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId, sessionId }),
+      body: JSON.stringify(body),
     });
   } catch(e) {
     console.error('Notify tablet failed:', e);
@@ -122,6 +125,7 @@ function startConnect() {
   if (!token) { showError('Token inválido. Solicite novo QR code no tablet.'); return; }
 
   show('connecting');
+  notifyTablet(null, 'CONNECTING'); // avisa tablet que começou
 
   const Constructor = window.PluggyConnect || window.PluggyConnector;
   if (!Constructor) { showError('Widget não carregado. Recarregue a página.'); return; }
@@ -131,11 +135,12 @@ function startConnect() {
     onSuccess: async ({ item }) => {
       connect.destroy();
       show('connecting');
-      await notifyTablet(item.id);
+      await notifyTablet(item.id, 'COMPLETED');
       show('success');
     },
     onError: (err) => {
       connect.destroy();
+      notifyTablet(null, 'ERROR');
       showError(err.message || 'Erro na conexão bancária.');
     },
     onClose: () => {
