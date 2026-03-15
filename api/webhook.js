@@ -1,26 +1,42 @@
-// Receptor de webhooks da Pluggy
-// POST /api/webhook  — Pluggy envia eventos aqui
-// GET  /api/webhook  — frontend busca eventos
-// DELETE /api/webhook — limpa eventos
+// api/webhook.js — sem dependência de @vercel/kv
+// Usa fetch nativo do Node 18+ para a REST API do KV
 
-const { kv } = require('@vercel/kv');
-
+const KV_URL   = process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.KV_REST_API_TOKEN;
+const KV_KEY   = 'pluggy_webhook_events';
 const MAX_EVENTS = 100;
-const KV_KEY = 'pluggy_webhook_events';
+
+async function kvGet(key) {
+  if (!KV_URL || !KV_TOKEN) return null;
+  const res = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.result) return null;
+  try { return JSON.parse(data.result); } catch { return null; }
+}
+
+async function kvSet(key, value) {
+  if (!KV_URL || !KV_TOKEN) return;
+  await fetch(`${KV_URL}/set/${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: JSON.stringify(value) }),
+  });
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-pluggy-signature');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ── POST: Pluggy envia evento ──
   if (req.method === 'POST') {
     try {
       const payload = req.body || {};
       const event = {
-        id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: `evt_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
         receivedAt: new Date().toISOString(),
         event: payload.event || 'unknown',
         paymentRequestId:      payload.paymentRequestId      || null,
@@ -31,46 +47,35 @@ module.exports = async function handler(req, res) {
         error:  payload.error  || null,
         raw:    payload,
       };
-
-      // Lê lista atual → prepend → limita → salva
-      let events = [];
-      try { events = (await kv.get(KV_KEY)) || []; } catch {}
+      let events = await kvGet(KV_KEY) || [];
       events.unshift(event);
       if (events.length > MAX_EVENTS) events.splice(MAX_EVENTS);
-      await kv.set(KV_KEY, events);
-
+      await kvSet(KV_KEY, events);
       console.log(`[webhook] ${event.event} — ${event.receivedAt}`);
       return res.status(200).json({ received: true, id: event.id });
     } catch (err) {
-      console.error('[webhook] erro:', err);
-      return res.status(200).json({ received: true }); // sempre 200 — Pluggy não retenta
+      console.error('[webhook POST]', err.message);
+      return res.status(200).json({ received: true }); // sempre 200
     }
   }
 
-  // ── GET: frontend busca eventos ──
   if (req.method === 'GET') {
     try {
-      const events = (await kv.get(KV_KEY)) || [];
+      const events = await kvGet(KV_KEY) || [];
       const since = req.query.since ? parseInt(req.query.since) : 0;
       const filtered = since
         ? events.filter(e => new Date(e.receivedAt).getTime() > since)
         : events;
       return res.status(200).json({ events: filtered, total: events.length });
     } catch (err) {
-      return res.status(200).json({ events: [], total: 0, error: String(err.message) });
+      return res.status(200).json({ events: [], total: 0, error: err.message });
     }
   }
 
-  // ── DELETE: limpar todos os eventos ──
   if (req.method === 'DELETE') {
-    try {
-      await kv.set(KV_KEY, []);
-      return res.status(200).json({ cleared: true });
-    } catch (err) {
-      return res.status(500).json({ error: String(err.message) });
-    }
+    await kvSet(KV_KEY, []);
+    return res.status(200).json({ cleared: true });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
-}
-
+};
