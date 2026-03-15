@@ -937,6 +937,48 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
 </div>
 
 
+<!-- ═══════════════════════════════════
+     MODAL: OPEN FINANCE — QR vs LOCAL
+════════════════════════════════════ -->
+<div class="modal-bg" id="of-choice-modal">
+  <div class="modal" style="width:440px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div class="modal-title" style="margin-bottom:0">Conectar via Open Finance</div>
+      <button onclick="closeOFChoiceModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);line-height:1">✕</button>
+    </div>
+
+    <!-- QR Code -->
+    <div id="of-qr-section" style="display:none;text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+        📱 <strong>Cliente escaneia com o celular</strong><br/>
+        O widget abre no browser do celular — com acesso ao app do banco
+      </div>
+      <div id="of-qrcode" style="width:200px;height:200px;margin:0 auto 14px;background:#f5f5f5;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
+      <div id="of-qr-status" style="min-height:24px;margin-bottom:4px"></div>
+    </div>
+
+    <!-- Fallback sem token -->
+    <div id="of-qr-fallback" style="display:none;background:#FFF3D6;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px">
+      ⚠️ QR code indisponível. Use o widget local.
+    </div>
+
+    <!-- Botões de ação -->
+    <div id="of-choice-btns" style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-green btn-full" onclick="startQRPolling()" style="padding:13px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span style="font-size:18px">📱</span>
+        <span><strong>Cliente escaneia o QR code</strong><br/><span style="font-size:11px;font-weight:400;opacity:.85">Abre no celular — com app do banco</span></span>
+      </button>
+      <button class="btn btn-outline btn-full" onclick="openLocalWidget()" style="padding:13px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span style="font-size:18px">💻</span>
+        <span><strong>Abrir widget aqui no tablet</strong><br/><span style="font-size:11px;opacity:.7">Sem acesso ao app do banco</span></span>
+      </button>
+    </div>
+
+    <input type="hidden" id="of-choice-connect-url"/>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════
 //  STATE
@@ -2061,72 +2103,113 @@ function copyReceiverUrl() {
 }
 
 // ══════════════════════════════════════
-//  OPEN FINANCE — PLUGGY CONNECT WIDGET
+//  OPEN FINANCE — DUAL MODE (QR + LOCAL)
 // ══════════════════════════════════════
+let ofSessionId   = null;
+let ofSessionPoll = null;
+
 async function openPluggyConnect() {
-  try {
-    const tokenData = await pluggy('/connect-token', 'POST', {
-      clientUserId: 'erp-demo-' + Date.now(),
-    });
-    const token = tokenData.accessToken || tokenData.connectToken || tokenData.token;
-    if (!token) {
-      console.error('[OF] connect-token response:', tokenData);
-      toast('Erro ao obter token: ' + (tokenData.message || tokenData.error || 'resposta inesperada'));
-      return;
+  const tokenData = await pluggy('/connect-token', 'POST', {
+    clientUserId: 'erp-demo-' + Date.now(),
+  }).catch(() => null);
+  const token = tokenData?.accessToken || tokenData?.connectToken || tokenData?.token;
+
+  document.getElementById('of-choice-modal').classList.add('on');
+  document.getElementById('of-qr-section').style.display = 'none';
+  document.getElementById('of-qr-fallback').style.display = 'none';
+  document.getElementById('of-choice-btns').style.display = 'flex';
+  document.getElementById('of-qr-status').innerHTML = '';
+
+  if (token) {
+    document.getElementById('of-choice-modal').dataset.token = token;
+    ofSessionId = 'sess_' + Math.random().toString(36).slice(2,10) + Date.now();
+    const connectUrl = location.origin + '/connect.html?token=' + encodeURIComponent(token) +
+      '&sessionId=' + encodeURIComponent(ofSessionId) +
+      '&origin=' + encodeURIComponent(location.origin);
+    const qrEl = document.getElementById('of-qrcode');
+    qrEl.innerHTML = '';
+    try {
+      new QRCode(qrEl, { text: connectUrl, width: 192, height: 192,
+        colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    } catch {
+      qrEl.innerHTML = '<div style="font-size:10px;word-break:break-all;color:var(--green);padding:8px">' + connectUrl + '</div>';
     }
-
-    // Carrega script com cache-busting para garantir versão correta
-    await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js', true);
-
-    // O construtor pode estar em diferentes nomes dependendo da versão
-    const Constructor = window.PluggyConnect || window.PluggyConnector || window.pluggyConnect;
-    if (!Constructor) {
-      console.error('[OF] window keys:', Object.keys(window).filter(k=>k.toLowerCase().includes('pluggy')));
-      toast('Widget não carregado. Verifique o console.');
-      return;
-    }
-
-    const connect = new Constructor({
-      connectToken: token,
-      onSuccess: async ({ item }) => {
-        connect.destroy();
-        await handleOFAccountSelect(item.id);
-      },
-      onError: (err) => {
-        connect.destroy();
-        toast('Erro na conexão: ' + (err.message || 'tente novamente'));
-      },
-      onClose: () => connect.destroy(),
-    });
-    connect.init();
-  } catch(e) {
-    toast('Erro ao abrir widget: ' + e.message);
+    document.getElementById('of-qr-section').style.display = 'block';
+  } else {
+    document.getElementById('of-qr-fallback').style.display = 'block';
   }
 }
 
-function loadScript(src, forceReload = false) {
+function startQRPolling() {
+  if (ofSessionPoll) clearInterval(ofSessionPoll);
+  document.getElementById('of-choice-btns').style.display = 'none';
+  document.getElementById('of-qr-status').innerHTML =
+    '<span style="color:var(--green);font-size:13px">📱 Aguardando o cliente conectar no celular...</span>';
+  let attempts = 0;
+  ofSessionPoll = setInterval(async () => {
+    attempts++;
+    if (attempts > 150) {
+      clearInterval(ofSessionPoll);
+      document.getElementById('of-qr-status').innerHTML =
+        '<span style="color:var(--red);font-size:13px">⏰ Sessão expirada. Feche e tente novamente.</span>';
+      return;
+    }
+    try {
+      const res = await fetch('/api/session?sessionId=' + ofSessionId);
+      const data = await res.json();
+      if (data?.itemId) {
+        clearInterval(ofSessionPoll);
+        document.getElementById('of-choice-modal').classList.remove('on');
+        fetch('/api/session?sessionId=' + ofSessionId, { method: 'DELETE' }).catch(() => {});
+        await handleOFAccountSelect(data.itemId);
+      }
+    } catch {}
+  }, 2000);
+}
+
+async function openLocalWidget() {
+  const token = document.getElementById('of-choice-modal').dataset.token;
+  document.getElementById('of-choice-modal').classList.remove('on');
+  if (ofSessionPoll) { clearInterval(ofSessionPoll); ofSessionPoll = null; }
+  if (!token) { toast('Token não disponível. Reabra o modal.'); return; }
+  try {
+    await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js', true);
+    const Constructor = window.PluggyConnect || window.PluggyConnector;
+    if (!Constructor) { toast('Widget não carregado'); return; }
+    const connect = new Constructor({
+      connectToken: token,
+      onSuccess: async ({ item }) => { connect.destroy(); await handleOFAccountSelect(item.id); },
+      onError: (err) => { connect.destroy(); toast('Erro: ' + (err.message || 'tente novamente')); },
+      onClose: () => connect.destroy(),
+    });
+    connect.init();
+  } catch(e) { toast('Erro ao abrir widget: ' + e.message); }
+}
+
+function closeOFChoiceModal() {
+  if (ofSessionPoll) { clearInterval(ofSessionPoll); ofSessionPoll = null; }
+  document.getElementById('of-choice-modal').classList.remove('on');
+}
+
+function loadScript(src, forceReload) {
   return new Promise((resolve, reject) => {
-    // Remove script antigo se forceReload
     if (forceReload) {
-      const old = document.querySelector(`script[data-pluggy-connect]`);
+      const old = document.querySelector('script[data-pluggy-connect]');
       if (old) old.remove();
-      // Limpa referências antigas
       delete window.PluggyConnect;
       delete window.PluggyConnector;
     }
-    const existing = document.querySelector(`script[src="${src}"]`);
+    const existing = document.querySelector('script[src="' + src + '"]');
     if (existing && !forceReload) { resolve(); return; }
     const s = document.createElement('script');
     s.src = src;
     s.setAttribute('data-pluggy-connect', '1');
-    s.onload = () => {
-      console.log('[OF] script carregado. window.PluggyConnect:', typeof window.PluggyConnect);
-      resolve();
-    };
+    s.onload = resolve;
     s.onerror = () => reject(new Error('Falha ao carregar script do widget'));
     document.head.appendChild(s);
   });
 }
+
 
 
 async function handleOFAccountSelect(itemId) {
