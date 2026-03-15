@@ -941,40 +941,45 @@ html,body{width:100%;height:100%;overflow:hidden;background:#f8f9fb;font-family:
      MODAL: OPEN FINANCE — QR vs LOCAL
 ════════════════════════════════════ -->
 <div class="modal-bg" id="of-choice-modal">
-  <div class="modal" style="width:440px">
+  <div class="modal" style="width:460px">
 
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div class="modal-title" style="margin-bottom:0">Conectar via Open Finance</div>
       <button onclick="closeOFChoiceModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);line-height:1">✕</button>
     </div>
 
-    <!-- QR Code -->
-    <div id="of-qr-section" style="display:none;text-align:center;margin-bottom:16px">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">
-        📱 <strong>Cliente escaneia com o celular</strong><br/>
-        O widget abre no browser do celular — com acesso ao app do banco
+    <!-- QR Code + status (sempre visível quando token disponível) -->
+    <div id="of-qr-section" style="display:none">
+      <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:12px">
+        <!-- QR -->
+        <div style="flex-shrink:0;text-align:center">
+          <div id="of-qrcode" style="width:160px;height:160px;background:#f5f5f5;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center"></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px">📱 Aponte a câmera</div>
+        </div>
+        <!-- Info + botão celular -->
+        <div style="flex:1;padding-top:4px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px">Conecte no celular</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">Escaneie o QR com a câmera do celular do cliente. O widget abre direto no browser com acesso ao app do banco.</div>
+          <button class="btn btn-green btn-full" onclick="startQRPolling()" id="of-qr-start-btn" style="padding:10px;font-size:13px">
+            📱 Iniciar aguardo
+          </button>
+        </div>
       </div>
-      <div id="of-qrcode" style="width:200px;height:200px;margin:0 auto 14px;background:#f5f5f5;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
-      <div id="of-qr-status" style="min-height:24px;margin-bottom:4px"></div>
-      <div id="of-qr-debug" style="display:none;margin-top:8px;padding:8px;background:#1a1a1a;border-radius:8px;font-size:10px;color:#a8ff78;font-family:monospace;text-align:left;word-break:break-all"></div>
+      <div id="of-qr-status" style="min-height:20px;margin-bottom:10px;text-align:center"></div>
+      <div id="of-qr-debug" style="display:none;padding:8px;background:#1a1a1a;border-radius:8px;font-size:10px;color:#a8ff78;font-family:monospace;word-break:break-all;margin-bottom:10px"></div>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px"></div>
     </div>
 
     <!-- Fallback sem token -->
     <div id="of-qr-fallback" style="display:none;background:#FFF3D6;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px">
-      ⚠️ QR code indisponível. Use o widget local.
+      ⚠️ QR code indisponível. Use o widget local abaixo.
     </div>
 
-    <!-- Botões de ação -->
-    <div id="of-choice-btns" style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn btn-green btn-full" onclick="startQRPolling()" style="padding:13px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span style="font-size:18px">📱</span>
-        <span><strong>Cliente escaneia o QR code</strong><br/><span style="font-size:11px;font-weight:400;opacity:.85">Abre no celular — com app do banco</span></span>
-      </button>
-      <button class="btn btn-outline btn-full" onclick="openLocalWidget()" style="padding:13px;display:flex;align-items:center;justify-content:center;gap:8px">
-        <span style="font-size:18px">💻</span>
-        <span><strong>Abrir widget aqui no tablet</strong><br/><span style="font-size:11px;opacity:.7">Sem acesso ao app do banco</span></span>
-      </button>
-    </div>
+    <!-- Botão widget local — sempre visível -->
+    <button class="btn btn-outline btn-full" onclick="openLocalWidget()" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:16px">💻</span>
+      <span style="text-align:left"><strong>Abrir widget aqui no tablet</strong><br/><span style="font-size:11px;opacity:.7;font-weight:400">Sem redirecionamento ao app do banco</span></span>
+    </button>
 
     <input type="hidden" id="of-choice-connect-url"/>
   </div>
@@ -2118,26 +2123,31 @@ async function openPluggyConnect() {
   document.getElementById('of-choice-modal').classList.add('on');
   document.getElementById('of-qr-section').style.display = 'none';
   document.getElementById('of-qr-fallback').style.display = 'none';
-  document.getElementById('of-choice-btns').style.display = 'flex';
+          if (startBtn) startBtn.style.display = 'block';
   document.getElementById('of-qr-status').innerHTML = '';
 
   if (token) {
     document.getElementById('of-choice-modal').dataset.token = token;
     ofSessionId = 'sess_' + Math.random().toString(36).slice(2,10) + Date.now();
-    const connectUrl = location.origin + '/connect.html?token=' + encodeURIComponent(token) +
-      '&sessionId=' + encodeURIComponent(ofSessionId) +
-      '&origin=' + encodeURIComponent(location.origin);
+
+    const connectUrl = location.origin + '/connect.html?sessionId=' + encodeURIComponent(ofSessionId);
+
+    // Salva token no Redis para o celular buscar
+    fetch('/api/session?sessionId=' + encodeURIComponent(ofSessionId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, status: 'PENDING' }),
+    }).catch(err => console.warn('[QR] save token failed:', err));
+
+    // QR Code via API — 240px, margin grande, baixa densidade = fácil de ler
     const qrEl = document.getElementById('of-qrcode');
-    qrEl.innerHTML = '';
-    try {
-      new QRCode(qrEl, { text: connectUrl, width: 192, height: 192,
-        colorDark: '#1a1a2e', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-    } catch {
-      qrEl.innerHTML = '<div style="font-size:10px;word-break:break-all;color:var(--green);padding:8px">' + connectUrl + '</div>';
-    }
+    const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&ecc=L&data=' +
+      encodeURIComponent(connectUrl);
+    qrEl.innerHTML = '<img src="' + qrUrl + '" width="160" height="160" style="border-radius:8px;display:block;image-rendering:pixelated" alt="QR Code" onerror="this.parentNode.innerHTML=\'<div style=font-size:10px;padding:8px;word-break:break-all;color:#1D9E75>\'+decodeURIComponent(\'' + encodeURIComponent(connectUrl) + '\')+\'</div>\'"/>';
+
     document.getElementById('of-qr-section').style.display = 'block';
-    // Inicia polling automaticamente ao exibir o QR
-    startQRPolling();
+    document.getElementById('of-qr-start-btn').style.display = 'block';
+    setQRStatus('waiting', '');
   } else {
     document.getElementById('of-qr-fallback').style.display = 'block';
   }
@@ -2145,7 +2155,8 @@ async function openPluggyConnect() {
 
 function startQRPolling() {
   if (ofSessionPoll) clearInterval(ofSessionPoll);
-  document.getElementById('of-choice-btns').style.display = 'none';
+  const startBtn = document.getElementById('of-qr-start-btn');
+  if (startBtn) startBtn.style.display = 'none';
   setQRStatus('waiting', '📱 Aguardando o cliente escanear o QR code...');
 
   // Mostra debug box
@@ -2189,7 +2200,7 @@ function startQRPolling() {
         } else if (data.status === 'ERROR') {
           clearInterval(ofSessionPoll);
           setQRStatus('error', '❌ Erro na conexão. Cliente pode tentar novamente.');
-          document.getElementById('of-choice-btns').style.display = 'flex';
+          if (startBtn) startBtn.style.display = 'block';
           return;
         }
       }
@@ -2287,19 +2298,16 @@ async function handleOFAccountSelect(itemId) {
     if (!checking) { toast('Nenhuma conta encontrada'); return; }
 
     // ── PARSE AGÊNCIA E CONTA ──
-    // transferNumber vem como "COMPE/Agência/Conta" ex: "323/0001/86844116364"
-    // number sozinho pode ser só a conta sem agência
+    // transferNumber vem como "COMPE/Agência/Conta" ex: "341/3814/000085555"
     let branch = '', number = '', compe = '';
 
     if (checking.transferNumber) {
       const parts = checking.transferNumber.split('/').map(p => p.trim());
       if (parts.length >= 3) {
-        // COMPE / Agência / Conta
         compe  = parts[0];
         branch = parts[1].replace(/\D/g,'');
         number = parts[2].replace(/[^0-9X]/gi,'');
       } else if (parts.length === 2) {
-        // Agência / Conta
         branch = parts[0].replace(/\D/g,'');
         number = parts[1].replace(/[^0-9X]/gi,'');
       } else {
@@ -2314,15 +2322,17 @@ async function handleOFAccountSelect(itemId) {
         number = checking.number.replace(/[^0-9X]/gi,'');
       }
     }
-    // Fallback: routingNumber como agência
-    if (!branch && checking.routingNumber) branch = checking.routingNumber.replace(/\D/g,'');
+
+    // Fallbacks para agência
+    if (!branch) {
+      branch = (checking.bankData?.branchNumber || checking.bankData?.branch ||
+                checking.branchNumber || checking.routingNumber || '').replace(/\D/g,'');
+    }
 
     // ── NOME E CPF/CNPJ ──
-    // 1. Tenta taxNumber direto na conta
     let tax = (checking.taxNumber || '').replace(/\D/g,'');
-    let name = checking.owner?.name || checking.name || '';
+    let name = checking.owner?.name || '';
 
-    // 2. Tenta /identity se não encontrou na conta
     if (!tax || !name) {
       try {
         const identity = await pluggy(`/identity?itemId=${itemId}`);
@@ -2330,33 +2340,41 @@ async function handleOFAccountSelect(itemId) {
         if (!name) name = identity.fullName || identity.businessName || '';
         if (!tax)  tax  = (identity.taxNumber || identity.cpf || identity.cnpj || '').replace(/\D/g,'');
       } catch(e) {
-        console.warn('[OF] identity não disponível:', e.message);
+        console.warn('[OF] identity:', e.message);
       }
     }
 
     // ── MAPEAR INSTITUIÇÃO ──
-    // Tenta pelo COMPE (3 dígitos) ou ISPB do bankData
+    // Busca pelo COMPE do transferNumber, depois por bankData, depois por nome
     let instId = '', instName = '';
-    const compeCode = compe || checking.bankData?.routingNumber || '';
-    if (compeCode) {
+
+    const compeFromBankData = checking.bankData?.routingNumber ||
+      checking.bankData?.transferNumber?.split('/')?.[0] || '';
+    const compeToSearch = compe || compeFromBankData;
+
+    if (compeToSearch) {
       const found = S.institutions.find(i =>
-        i.compe === compeCode ||
-        i.ispb  === compeCode ||
-        (i.name||'').toLowerCase().includes(compeCode.toLowerCase())
-      );
-      if (found) { instId = found.id; instName = found.name || found.tradeName || ''; }
-    }
-    // Fallback: busca pelo nome do banco na conta
-    if (!instId && checking.name) {
-      const bankNameClean = checking.name.toLowerCase().replace(/\s+/g,'');
-      const found = S.institutions.find(i =>
-        (i.name||'').toLowerCase().replace(/\s+/g,'').includes(bankNameClean) ||
-        bankNameClean.includes((i.name||'').toLowerCase().replace(/\s+/g,'').substring(0,6))
+        String(i.compe).padStart(3,'0') === String(compeToSearch).padStart(3,'0') ||
+        i.ispb === compeToSearch
       );
       if (found) { instId = found.id; instName = found.name || found.tradeName || ''; }
     }
 
-    console.log('[OF] parsed →', { branch, number, tax, name, compe, instId });
+    // Fallback: nome do banco (ex: "itau" → busca "Itaú")
+    if (!instId) {
+      const bankName = (checking.name || checking.bankData?.name || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if (bankName) {
+        const found = S.institutions.find(i => {
+          const iName = (i.name || i.tradeName || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+          return iName.includes(bankName.slice(0,5)) || bankName.includes(iName.slice(0,5));
+        });
+        if (found) { instId = found.id; instName = found.name || found.tradeName || ''; }
+      }
+    }
+
+    console.log('[OF] parsed →', { compe, branch, number, tax, name, instId, instName });
 
     // ── PREENCHE O FORMULÁRIO ──
     if (name) document.getElementById('m-name').value = name;
