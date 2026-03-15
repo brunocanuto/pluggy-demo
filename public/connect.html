@@ -85,6 +85,9 @@ body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f8f9fb;min-heig
     <button class="btn btn-ghost" onclick="location.reload()">Tentar novamente</button>
   </div>
 
+  <!-- Debug (sempre visível) -->
+  <pre id="s-debug" style="margin-top:16px;font-size:9px;color:#aaa;text-align:left;white-space:pre-wrap;word-break:break-all;max-height:80px;overflow:hidden"></pre>
+
 </div>
 
 <script src="https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js"></script>
@@ -106,19 +109,29 @@ function showError(msg) {
 }
 
 async function notifyTablet(itemId, status) {
-  if (!sessionId) return;
+  if (!sessionId) { dbg('notifyTablet: sem sessionId!'); return; }
+  const body = { sessionId };
+  if (itemId) body.itemId = itemId;
+  if (status) body.status = status;
+  const url = `${origin}/api/session?sessionId=${encodeURIComponent(sessionId)}`;
+  dbg(`POST ${url.slice(-40)} body:${JSON.stringify(body).slice(0,60)}`);
   try {
-    const body = { sessionId };
-    if (itemId) body.itemId = itemId;
-    if (status) body.status = status;
-    await fetch(`${origin}/api/session?sessionId=${sessionId}`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    const text = await res.text();
+    dbg(`POST resposta ${res.status}: ${text.slice(0,60)}`);
   } catch(e) {
-    console.error('Notify tablet failed:', e);
+    dbg('POST ERRO: ' + e.message);
   }
+}
+
+function dbg(msg) {
+  console.log('[connect.html]', msg);
+  const el = document.getElementById('s-debug');
+  if (el) el.textContent = msg + '\n' + el.textContent.split('\n').slice(0,5).join('\n');
 }
 
 function startConnect() {
