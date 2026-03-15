@@ -1,28 +1,25 @@
-// api/webhook.js — sem dependência de @vercel/kv
-// Usa fetch nativo do Node 18+ para a REST API do KV
+// api/webhook.js — Upstash Redis via REST (sem dependências externas)
 
-const KV_URL   = process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN;
-const KV_KEY   = 'pluggy_webhook_events';
-const MAX_EVENTS = 100;
+const KV_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL;
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const KEY = 'pluggy_webhook_events';
+const MAX = 100;
 
-async function kvGet(key) {
+async function redisGet(key) {
   if (!KV_URL || !KV_TOKEN) return null;
   const res = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!data.result) return null;
-  try { return JSON.parse(data.result); } catch { return null; }
+  const json = await res.json();
+  if (!json.result) return null;
+  try { return JSON.parse(json.result); } catch { return null; }
 }
 
-async function kvSet(key, value) {
+async function redisSet(key, value) {
   if (!KV_URL || !KV_TOKEN) return;
-  await fetch(`${KV_URL}/set/${encodeURIComponent(key)}`, {
+  await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ value: JSON.stringify(value) }),
+    headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
 }
 
@@ -34,46 +31,42 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const payload = req.body || {};
+      const p = req.body || {};
       const event = {
         id: `evt_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
         receivedAt: new Date().toISOString(),
-        event: payload.event || 'unknown',
-        paymentRequestId:      payload.paymentRequestId      || null,
-        paymentIntentId:       payload.paymentIntentId       || null,
-        scheduledPaymentId:    payload.scheduledPaymentId    || null,
-        automaticPixPaymentId: payload.automaticPixPaymentId || null,
-        itemId: payload.itemId || null,
-        error:  payload.error  || null,
-        raw:    payload,
+        event: p.event || 'unknown',
+        paymentRequestId:      p.paymentRequestId      || null,
+        paymentIntentId:       p.paymentIntentId       || null,
+        scheduledPaymentId:    p.scheduledPaymentId    || null,
+        automaticPixPaymentId: p.automaticPixPaymentId || null,
+        itemId: p.itemId || null,
+        error:  p.error  || null,
+        raw: p,
       };
-      let events = await kvGet(KV_KEY) || [];
+      let events = await redisGet(KEY) || [];
       events.unshift(event);
-      if (events.length > MAX_EVENTS) events.splice(MAX_EVENTS);
-      await kvSet(KV_KEY, events);
-      console.log(`[webhook] ${event.event} — ${event.receivedAt}`);
+      if (events.length > MAX) events.splice(MAX);
+      await redisSet(KEY, events);
       return res.status(200).json({ received: true, id: event.id });
-    } catch (err) {
-      console.error('[webhook POST]', err.message);
-      return res.status(200).json({ received: true }); // sempre 200
+    } catch(err) {
+      return res.status(200).json({ received: true });
     }
   }
 
   if (req.method === 'GET') {
     try {
-      const events = await kvGet(KV_KEY) || [];
+      const events = await redisGet(KEY) || [];
       const since = req.query.since ? parseInt(req.query.since) : 0;
-      const filtered = since
-        ? events.filter(e => new Date(e.receivedAt).getTime() > since)
-        : events;
+      const filtered = since ? events.filter(e => new Date(e.receivedAt).getTime() > since) : events;
       return res.status(200).json({ events: filtered, total: events.length });
-    } catch (err) {
-      return res.status(200).json({ events: [], total: 0, error: err.message });
+    } catch(err) {
+      return res.status(200).json({ events: [], total: 0 });
     }
   }
 
   if (req.method === 'DELETE') {
-    await kvSet(KV_KEY, []);
+    await redisSet(KEY, []);
     return res.status(200).json({ cleared: true });
   }
 
