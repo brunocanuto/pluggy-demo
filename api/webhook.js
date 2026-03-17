@@ -1,4 +1,4 @@
-// api/webhook.js — Upstash Redis via REST (sem dependências externas)
+// api/webhook.js — Upstash Redis REST API (formato correto)
 
 const KV_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
@@ -17,7 +17,8 @@ async function redisGet(key) {
 
 async function redisSet(key, value) {
   if (!KV_URL || !KV_TOKEN) return;
-  await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}`, {
+  const encoded = encodeURIComponent(JSON.stringify(value));
+  await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encoded}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
