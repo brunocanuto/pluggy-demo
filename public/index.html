@@ -2115,7 +2115,7 @@ let ofSessionId   = null;
 let ofSessionPoll = null;
 
 async function openPluggyConnect() {
-  // Abre o modal imediatamente enquanto busca o token
+  // Abre o modal imediatamente com loading
   document.getElementById('of-choice-modal').classList.add('on');
   document.getElementById('of-qr-section').style.display = 'none';
   document.getElementById('of-qr-fallback').style.display = 'none';
@@ -2131,17 +2131,23 @@ async function openPluggyConnect() {
   if (token) {
     document.getElementById('of-choice-modal').dataset.token = token;
     ofSessionId = 'sess_' + Math.random().toString(36).slice(2,10) + Date.now();
-
     const connectUrl = location.origin + '/connect.html?sessionId=' + encodeURIComponent(ofSessionId);
 
-    // Salva token no Redis para o celular buscar
-    fetch('/api/session?sessionId=' + encodeURIComponent(ofSessionId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, status: 'PENDING' }),
-    }).catch(err => console.warn('[QR] save token failed:', err));
+    // IMPORTANTE: aguarda o save no Redis ANTES de mostrar o QR
+    // Assim o celular nunca escaneia antes do token estar disponível
+    try {
+      const saveRes = await fetch('/api/session?sessionId=' + encodeURIComponent(ofSessionId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, status: 'PENDING' }),
+      });
+      const saveData = await saveRes.json();
+      console.log('[OF] token salvo no Redis:', saveData);
+    } catch(err) {
+      console.warn('[OF] falha ao salvar token:', err);
+    }
 
-    // QR Code via API externa — PNG server-side, fácil de ler
+    // Só agora gera e exibe o QR
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&ecc=L&data=' +
       encodeURIComponent(connectUrl);
     qrEl.innerHTML = '<img src="' + qrUrl + '" width="160" height="160" style="border-radius:8px;display:block" alt="QR Code"/>';
@@ -2151,7 +2157,6 @@ async function openPluggyConnect() {
     if (startBtn) startBtn.style.display = 'block';
     setQRStatus('waiting', '');
   } else {
-    // Token falhou — mostra aviso mas mantém botão local funcional
     document.getElementById('of-qr-fallback').style.display = 'block';
     qrEl.innerHTML = '';
     console.warn('[OF] connect-token falhou:', tokenData);
