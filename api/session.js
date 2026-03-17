@@ -1,11 +1,11 @@
-// api/session.js — Upstash Redis via REST (sem dependências externas)
+// api/session.js — Upstash Redis REST API (formato correto)
 
 const KV_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 const TTL = 600;
 
 async function redisGet(key) {
-  if (!KV_URL || !KV_TOKEN) throw new Error('Redis não configurado. Adicione Upstash no Vercel → Storage.');
+  if (!KV_URL || !KV_TOKEN) throw new Error('Upstash não configurado');
   const res = await fetch(`${KV_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
@@ -15,12 +15,16 @@ async function redisGet(key) {
 }
 
 async function redisSet(key, value) {
-  if (!KV_URL || !KV_TOKEN) throw new Error('Redis não configurado. Adicione Upstash no Vercel → Storage.');
-  const res = await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encodeURIComponent(JSON.stringify(value))}?ex=${TTL}`, {
+  if (!KV_URL || !KV_TOKEN) throw new Error('Upstash não configurado');
+  // Formato correto Upstash: POST /set/{key}/{value}/EX/{ttl}
+  const encoded = encodeURIComponent(JSON.stringify(value));
+  const res = await fetch(`${KV_URL}/set/${encodeURIComponent(key)}/${encoded}/EX/${TTL}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${KV_TOKEN}` },
   });
-  if (!res.ok) throw new Error('Redis set failed: ' + res.status + ' ' + await res.text());
+  const json = await res.json();
+  if (!res.ok || json.error) throw new Error('Redis set failed: ' + (json.error || res.status));
+  return json;
 }
 
 async function redisDel(key) {
@@ -41,7 +45,6 @@ module.exports = async function handler(req, res) {
   if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
   const key = 'sess_' + sessionId;
 
-  // POST: tablet salva token / celular salva itemId+status
   if (req.method === 'POST') {
     const { token, itemId, status } = req.body || {};
     try {
@@ -53,18 +56,19 @@ module.exports = async function handler(req, res) {
         ...(status && { status }),
         updatedAt: new Date().toISOString(),
       };
-      await redisSet(key, updated);
-      return res.status(200).json({ saved: true });
+      const saved = await redisSet(key, updated);
+      console.log('[session POST] saved:', JSON.stringify(saved), 'data:', JSON.stringify(updated).slice(0,80));
+      return res.status(200).json({ saved: true, result: saved });
     } catch(err) {
       console.error('[session POST]', err.message);
       return res.status(500).json({ error: err.message });
     }
   }
 
-  // GET: ?getToken=1 → celular busca token | padrão → tablet faz polling
   if (req.method === 'GET') {
     try {
       const data = await redisGet(key);
+      console.log('[session GET] getToken:', req.query.getToken, 'data:', JSON.stringify(data||{}).slice(0,80));
       if (req.query.getToken === '1') {
         return res.status(200).json(data || { token: null });
       }
@@ -77,7 +81,6 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // DELETE: cleanup
   if (req.method === 'DELETE') {
     await redisDel(key);
     return res.status(200).json({ deleted: true });
