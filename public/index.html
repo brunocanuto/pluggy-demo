@@ -2115,16 +2115,18 @@ let ofSessionId   = null;
 let ofSessionPoll = null;
 
 async function openPluggyConnect() {
+  // Abre o modal imediatamente enquanto busca o token
+  document.getElementById('of-choice-modal').classList.add('on');
+  document.getElementById('of-qr-section').style.display = 'none';
+  document.getElementById('of-qr-fallback').style.display = 'none';
+  document.getElementById('of-qr-status').innerHTML = '';
+  const qrEl = document.getElementById('of-qrcode');
+  qrEl.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px">⏳ Gerando QR code...</div>';
+
   const tokenData = await pluggy('/connect-token', 'POST', {
     clientUserId: 'erp-demo-' + Date.now(),
   }).catch(() => null);
   const token = tokenData?.accessToken || tokenData?.connectToken || tokenData?.token;
-
-  document.getElementById('of-choice-modal').classList.add('on');
-  document.getElementById('of-qr-section').style.display = 'none';
-  document.getElementById('of-qr-fallback').style.display = 'none';
-          if (startBtn) startBtn.style.display = 'block';
-  document.getElementById('of-qr-status').innerHTML = '';
 
   if (token) {
     document.getElementById('of-choice-modal').dataset.token = token;
@@ -2139,17 +2141,20 @@ async function openPluggyConnect() {
       body: JSON.stringify({ token, status: 'PENDING' }),
     }).catch(err => console.warn('[QR] save token failed:', err));
 
-    // QR Code via API — 240px, margin grande, baixa densidade = fácil de ler
-    const qrEl = document.getElementById('of-qrcode');
+    // QR Code via API externa — PNG server-side, fácil de ler
     const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=16&ecc=L&data=' +
       encodeURIComponent(connectUrl);
-    qrEl.innerHTML = '<img src="' + qrUrl + '" width="160" height="160" style="border-radius:8px;display:block;image-rendering:pixelated" alt="QR Code" onerror="this.parentNode.innerHTML=\'<div style=font-size:10px;padding:8px;word-break:break-all;color:#1D9E75>\'+decodeURIComponent(\'' + encodeURIComponent(connectUrl) + '\')+\'</div>\'"/>';
+    qrEl.innerHTML = '<img src="' + qrUrl + '" width="160" height="160" style="border-radius:8px;display:block" alt="QR Code"/>';
 
     document.getElementById('of-qr-section').style.display = 'block';
-    document.getElementById('of-qr-start-btn').style.display = 'block';
+    const startBtn = document.getElementById('of-qr-start-btn');
+    if (startBtn) startBtn.style.display = 'block';
     setQRStatus('waiting', '');
   } else {
+    // Token falhou — mostra aviso mas mantém botão local funcional
     document.getElementById('of-qr-fallback').style.display = 'block';
+    qrEl.innerHTML = '';
+    console.warn('[OF] connect-token falhou:', tokenData);
   }
 }
 
@@ -2235,13 +2240,16 @@ function setQRStatus(type, msg) {
 
 async function openLocalWidget() {
   const token = document.getElementById('of-choice-modal').dataset.token;
-  document.getElementById('of-choice-modal').classList.remove('on');
+  if (!token) {
+    toast('Token não disponível — aguarde o QR code carregar ou feche e tente novamente.');
+    return;
+  }
   if (ofSessionPoll) { clearInterval(ofSessionPoll); ofSessionPoll = null; }
-  if (!token) { toast('Token não disponível. Reabra o modal.'); return; }
+  document.getElementById('of-choice-modal').classList.remove('on');
   try {
     await loadScript('https://cdn.pluggy.ai/pluggy-connect/v2.8.2/pluggy-connect.js', true);
     const Constructor = window.PluggyConnect || window.PluggyConnector;
-    if (!Constructor) { toast('Widget não carregado'); return; }
+    if (!Constructor) { toast('Widget não carregado — tente novamente'); return; }
     const connect = new Constructor({
       connectToken: token,
       onSuccess: async ({ item }) => { connect.destroy(); await handleOFAccountSelect(item.id); },
